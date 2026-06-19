@@ -1,8 +1,12 @@
 [Unit]
-Description=Whois dn42 daemon ng socket
+Description=dn42 whois socket
+Documentation=https://github.com/Moraxyc/whois42d-ng
 
 [Socket]
 ListenStream=43
+Accept=no
+NoDelay=true
+Service=whois42d-ng.service
 
 [Install]
 WantedBy=sockets.target

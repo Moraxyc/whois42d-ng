@@ -15,6 +15,8 @@
           rust-analyzer
           cargo-nextest
           cargo-edit
+          pkg-config
+          systemd
         ];
       };
     };

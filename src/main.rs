@@ -6,7 +6,7 @@ use clap::Parser;
 use whois42d_ng::registry::Registry;
 use whois42d_ng::server::{Cli, CliCommand, Options, serve_listener_until_idle};
 use whois42d_ng::signals::shutdown_flag;
-use whois42d_ng::socket_activation::tcp_listeners_from_env;
+use whois42d_ng::socket_activation::{notify_ready, tcp_listeners_from_env};
 
 fn main() -> ExitCode {
     match run() {
@@ -35,13 +35,11 @@ fn run_daemon(options: Options) -> std::io::Result<()> {
     let shutdown = shutdown_flag()?;
 
     if listeners.is_empty() {
-        serve_listener_until_idle(
-            TcpListener::bind(options.listen_addr())?,
-            registry,
-            std::time::Duration::MAX,
-            shutdown,
-        )
+        let listener = TcpListener::bind(options.listen_addr())?;
+        notify_ready()?;
+        serve_listener_until_idle(listener, registry, std::time::Duration::MAX, shutdown)
     } else {
+        notify_ready()?;
         let mut workers = Vec::new();
         for listener in listeners {
             let registry = registry.clone();

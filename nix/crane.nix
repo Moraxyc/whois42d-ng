@@ -14,7 +14,12 @@
         strictDeps = true;
         __structuredAttrs = true;
 
-        buildInputs = [ ];
+        nativeBuildInputs = with pkgs; [
+          pkg-config
+        ];
+        buildInputs = with pkgs; [
+          systemd
+        ];
       };
       src = lib.fileset.toSource {
         root = ./..;
