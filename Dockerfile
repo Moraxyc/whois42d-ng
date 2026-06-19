@@ -6,7 +6,7 @@ COPY Cargo.toml Cargo.lock ./
 COPY src ./src
 RUN cargo build --release --no-default-features --target x86_64-unknown-linux-musl
 
-FROM alpine:3.21
+FROM alpine:3.24
 RUN apk add --no-cache ca-certificates && \
     adduser -D whois42d-ng
 USER whois42d-ng
