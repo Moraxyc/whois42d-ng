@@ -27,15 +27,15 @@ However you can use one of the following options to run whois42d without beeing 
 
 2. Use a supervisor supporting socket activation, for example systemd:
 
-        $ cp whois42d.service whois42d.socket /etc/systemd/system
+        $ cp whois42d-ng.service whois42d-ng.socket /etc/systemd/system
         $ install -D -m755 target/release/whois42d-ng /usr/local/bin/whois42d-ng
 
-Edit whois42d.service to point to your registry path, then enable it with
+Edit whois42d-ng.service to point to your registry path, then enable it with
 
-    $ systemctl enable whois42d.socket
-    $ systemctl start whois42d.socket
+    $ systemctl enable whois42d-ng.socket
+    $ systemctl start whois42d-ng.socket
 
-**NOTE**: Do not start whois42d.service directly (`systemctl start whois42d`),
+**NOTE**: Do not start whois42d-ng.service directly (`systemctl start whois42d-ng`),
 it run as user nobody, who cannot bind to port 43 itself.
 
 ## Supported Queries
