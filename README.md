@@ -7,19 +7,13 @@ Based original on whoisd from the dn42 monotone registry written by welterde.
 
 ## Installation
 
-1. Install a go compiler (like apt-get install go)
-2. Setup Go Workspace:
+Build with Cargo:
 
-        $ mkdir ~/go && export GOPATH=~/go
-
-3. Download and install the daemon
-
-        $ go get github.com/Mic92/whois42d
+    $ cargo build --release
 
 ## Usage
 
-    root> ~/go/bin/whois42d -registry /path/to/registry
-
+    root> target/release/whois42d-ng --registry /path/to/registry
 
 ## Run without root
 
@@ -33,9 +27,9 @@ However you can use one of the following options to run whois42d without beeing 
 2. Use a supervisor supporting socket activation, for example systemd:
 
         $ cp whois42d.service whois42d.socket /etc/systemd/system
-        $ install -D -m755 ~/go/bin/whois42d /usr/local/bin/
+        $ install -D -m755 target/release/whois42d-ng /usr/local/bin/whois42d-ng
 
-Edit whois42d.service to point to your monotone registry path, then enable it with
+Edit whois42d.service to point to your registry path, then enable it with
 
     $ systemctl enable whois42d.socket
     $ systemctl start whois42d.socket
@@ -65,7 +59,7 @@ it run as user nobody, who cannot bind to port 43 itself.
 - types: `$ whois -h <server> -q types`
 - type filtering: `$ whois -h 172.23.75.6 -T aut-num,person Mic92-DN42 AS4242420092`
 
+The daemon accepts `--address`, `--port`, `--registry`, and `--timeout`.
+`--timeout` controls how long a socket-activated instance waits idle before exiting.
 
-## TODO
-
-- [ ] Match multiple objects by inverse index
+Template queries using `-t` return an unsupported response.
