@@ -1,0 +1,7 @@
+telephony:          +04243011
+nserver:            any.moraxyc.dn42
+ds-rdata:           1344 13 2 34b5bc397b424aa7b3145ac9e2b086e4d45890f1f4c9a678f303ac4edeb30678
+admin-c:            MORAXYC-DN42
+tech-c:             MORAXYC-DN42
+mnt-by:             MORAXYC-MNT
+source:             DN42

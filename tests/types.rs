@@ -9,6 +9,16 @@ fn detects_readme_supported_object_types() {
 }
 
 #[test]
+fn detects_telephony_number() {
+    assert_eq!(candidate_types("+04243011"), vec!["telephony"]);
+}
+
+#[test]
+fn does_not_detect_bare_plus_as_telephony() {
+    assert!(candidate_types("+").is_empty());
+}
+
+#[test]
 fn does_not_detect_bare_as_as_aut_num() {
     assert_eq!(candidate_types("AS"), vec!["as-set"]);
 }

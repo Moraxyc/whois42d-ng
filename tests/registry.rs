@@ -74,6 +74,18 @@ fn renders_invalid_query_response() {
 }
 
 #[test]
+fn renders_existing_telephony_object() {
+    let response = fixture_registry()
+        .handle_query("+04243011")
+        .expect("query should render");
+
+    assert!(response.contains("% This is the dn42 whois query service."));
+    assert!(response.contains("% Information related to 'telephony/+04243011':"));
+    assert!(response.contains("telephony:          +04243011"));
+    assert!(response.contains("nserver:            any.moraxyc.dn42"));
+}
+
+#[test]
 fn refuses_path_traversal_queries() {
     let outside = PathBuf::from("resources/fixtures/registry-3011/secret");
     fs::write(&outside, "secret").expect("test secret should be writable");
