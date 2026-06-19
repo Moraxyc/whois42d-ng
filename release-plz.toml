@@ -1,0 +1,9 @@
+[workspace]
+git_release_enable = false
+
+[[package]]
+name = "whois42d-ng"
+publish = false
+
+[changelog]
+tag_pattern = "v[0-9].*"

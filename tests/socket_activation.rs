@@ -11,6 +11,9 @@ fn no_matching_activation_environment_yields_no_listeners() {
 
 #[test]
 fn imports_listening_tcp_fd() {
+    if !whois42d_ng::HAS_SYSTEMD {
+        return;
+    }
     let listener = TcpListener::bind("127.0.0.1:0").expect("listener should bind");
     let addr = listener.local_addr().expect("local addr should exist");
     let imported = whois42d_ng::socket_activation::tcp_listener_from_fd(listener.into_raw_fd())
@@ -25,12 +28,19 @@ fn invalid_activation_fd_returns_clear_error() {
     let err = whois42d_ng::socket_activation::tcp_listener_from_fd(-1)
         .expect_err("invalid fd should error");
 
-    assert_eq!(err.kind(), std::io::ErrorKind::InvalidInput);
-    assert!(err.to_string().contains("invalid socket activation fd -1"));
+    if whois42d_ng::HAS_SYSTEMD {
+        assert_eq!(err.kind(), std::io::ErrorKind::InvalidInput);
+        assert!(err.to_string().contains("invalid socket activation fd -1"));
+    } else {
+        assert_eq!(err.kind(), std::io::ErrorKind::Unsupported);
+    }
 }
 
 #[test]
 fn connected_stream_fd_returns_clear_error() {
+    if !whois42d_ng::HAS_SYSTEMD {
+        return;
+    }
     let listener = TcpListener::bind("127.0.0.1:0").expect("listener should bind");
     let addr = listener.local_addr().expect("local addr should exist");
     let stream = TcpStream::connect(addr).expect("stream should connect");
