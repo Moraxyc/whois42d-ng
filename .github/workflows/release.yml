@@ -19,15 +19,15 @@ jobs:
                       os: ubuntu-latest
                       flags: "--no-default-features"
                     - target: aarch64-unknown-linux-musl
-                      os: ubuntu-latest
+                      os: ubuntu-24.04-arm
                       flags: "--no-default-features"
                     - target: x86_64-unknown-linux-gnu
                       os: ubuntu-latest
                       flags: ""
                     - target: aarch64-unknown-linux-gnu
-                      os: ubuntu-latest
+                      os: ubuntu-24.04-arm
                       flags: ""
-                    - target: x86_64-pc-windows-msvc
+                    - target: x86_64-pc-windows-gnu
                       os: ubuntu-latest
                       flags: "--no-default-features"
                     - target: x86_64-apple-darwin
@@ -39,22 +39,27 @@ jobs:
                     - target: riscv64gc-unknown-linux-gnu
                       os: ubuntu-latest
                       flags: "--no-default-features"
-                    - target: loongarch64-unknown-linux-gnu
-                      os: ubuntu-latest
-                      flags: "--no-default-features"
+
         steps:
             - uses: actions/checkout@v7
 
             - name: Add Rust target
               run: rustup target add ${{ matrix.target }}
 
-            - name: Install cross
+            - name: Install Linux build dependencies
               if: runner.os == 'Linux'
-              run: cargo install cross
+              run: sudo apt-get update && sudo apt-get install -y musl-tools gcc-riscv64-linux-gnu mingw-w64
 
-            - name: Build with cross
+            - name: Install systemd dev library
+              if: runner.os == 'Linux' && matrix.flags == ''
+              run: sudo apt-get install -y libsystemd-dev
+
+            - name: Build (Linux)
               if: runner.os == 'Linux'
-              run: cross build --release --target ${{ matrix.target }} ${{ matrix.flags }}
+              run: cargo build --release --target ${{ matrix.target }} ${{ matrix.flags }}
+              env:
+                  CARGO_TARGET_RISCV64GC_UNKNOWN_LINUX_GNU_LINKER: riscv64-linux-gnu-gcc
+                  CARGO_TARGET_X86_64_PC_WINDOWS_GNU_LINKER: x86_64-w64-mingw32-gcc
 
             - name: Build (macOS)
               if: runner.os == 'macOS'
