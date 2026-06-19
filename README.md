@@ -1,4 +1,7 @@
 # whois42d
+
+[![Nix Flake Check](https://github.com/Moraxyc/whois42d-ng/actions/workflows/nix-flake-check.yml/badge.svg)](https://github.com/Moraxyc/whois42d-ng/actions/workflows/nix-flake-check.yml)
+
 Whois server for the dn42 registry.
 
 Based original on whoisd from the dn42 monotone registry written by welterde.
