@@ -21,6 +21,6 @@ jobs:
               uses: cachix/install-nix-action@v31
 
             - name: Run release-plz
-              run: nix run nixpkgs#release-plz -- release
+              run: nix run nixpkgs#release-plz -- release --git-token $GITHUB_TOKEN --forge github
               env:
                   GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
