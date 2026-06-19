@@ -31,6 +31,18 @@ pub fn tcp_listeners_from_env() -> std::io::Result<Vec<std::net::TcpListener>> {
         .collect()
 }
 
+#[cfg(unix)]
+pub fn notify_ready() -> std::io::Result<()> {
+    systemd::daemon::notify(false, std::iter::once(&(systemd::daemon::STATE_READY, "1")))
+        .map(|_| ())
+        .map_err(std::io::Error::other)
+}
+
+#[cfg(not(unix))]
+pub fn notify_ready() -> std::io::Result<()> {
+    Ok(())
+}
+
 #[cfg(not(unix))]
 pub fn tcp_listeners_from_env() -> std::io::Result<Vec<std::net::TcpListener>> {
     Ok(Vec::new())

@@ -5,7 +5,7 @@ After=network-online.target
 Wants=network-online.target
 
 [Service]
-Type=exec
+Type=notify
 ExecStart=/usr/local/bin/whois42d-ng --registry /var/lib/whois42d/registry
 StateDirectory=whois42d
 UMask=0027
