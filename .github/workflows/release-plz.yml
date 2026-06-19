@@ -7,6 +7,7 @@ on:
 permissions:
     contents: write
     pull-requests: write
+    actions: write
 
 jobs:
     release-plz:
@@ -25,9 +26,22 @@ jobs:
                   sudo apt-get update
                   sudo apt-get install -y pkg-config libsystemd-dev
 
-            - name: Run release-plz
+            - name: Run release-plz (create/update PR)
               run: |
                   nix shell nixpkgs#cargo-semver-checks nixpkgs#release-plz -c \
                     release-plz release-pr --git-token $GITHUB_TOKEN --forge github
+              env:
+                  GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+            - name: Run release-plz (create tag)
+              run: |
+                  git tag > /tmp/tags-before.txt
+                  nix shell nixpkgs#release-plz -c \
+                    release-plz release --git-token $GITHUB_TOKEN
+                  NEW_TAG="$(comm -13 <(sort /tmp/tags-before.txt) <(git tag | sort))"
+                  if [ -z "$NEW_TAG" ]; then
+                    exit 0
+                  fi
+                  gh workflow run release.yml -f tag="$NEW_TAG"
               env:
                   GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
