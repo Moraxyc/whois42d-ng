@@ -26,6 +26,8 @@ jobs:
                   sudo apt-get install -y pkg-config libsystemd-dev
 
             - name: Run release-plz
-              run: nix run nixpkgs#release-plz -- release-pr --git-token $GITHUB_TOKEN --forge github
+              run: |
+                  nix shell nixpkgs#cargo-semver-checks nixpkgs#release-plz -c \
+                    release-plz release-pr --git-token $GITHUB_TOKEN --forge github
               env:
                   GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
