@@ -1,4 +1,14 @@
 pub const MAX_QUERY_LEN: usize = 1024;
+const MAX_LOGGED_QUERY_LEN: usize = 80;
+
+pub fn query_log_text(query: &str) -> String {
+    let query = query.trim();
+    if query.len() <= MAX_LOGGED_QUERY_LEN {
+        return query.to_string();
+    }
+
+    format!("{}...", &query[..MAX_LOGGED_QUERY_LEN])
+}
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum QueryLineError {
