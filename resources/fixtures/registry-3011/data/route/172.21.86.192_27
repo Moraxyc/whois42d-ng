@@ -1,0 +1,6 @@
+route:              172.21.86.192/27
+descr:              Moraxyc's IPv4 space
+remarks:            Used by Moraxyc's DN42 net
+origin:             AS4242423011
+mnt-by:             MORAXYC-MNT
+source:             DN42

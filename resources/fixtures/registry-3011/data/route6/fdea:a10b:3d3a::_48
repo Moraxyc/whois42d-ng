@@ -1,0 +1,5 @@
+route6:             fdea:a10b:3d3a::/48
+descr:              Welcome to peer me on dn42@moraxyc.com!
+origin:             AS4242423011
+mnt-by:             MORAXYC-MNT
+source:             DN42
