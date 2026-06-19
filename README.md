@@ -51,6 +51,7 @@ it run as user nobody, who cannot bind to port 43 itself.
 - organisation: `$ whois -h <server> ORG-C3D2`
 - tinc-keyset: `$ whois -h <server> SET-1-DN42-TINC`
 - tinc-key: `$ whois -h <server> AS4242422703`
+- key-cert: `$ whois -h <server> PGPKEY-12345678`
 - as-set: `$ whois -h <server> 4242420000_4242423999`
 - as-block: `$ whois -h <server> AS-FREIFUNK`
 - route-set: `$ whois -h <server> RS-DN42-NATIVE`
@@ -63,3 +64,17 @@ The daemon accepts `--address`, `--port`, `--registry`, and `--timeout`.
 `--timeout` controls how long a socket-activated instance waits idle before exiting.
 
 Template queries using `-t` return an unsupported response.
+
+## Build Docker Image
+
+Build a local Docker image:
+
+```
+$ docker build -t whois42d-ng .
+```
+
+Run it with a local registry checkout mounted at `/registry`:
+
+```
+$ docker run -v path/to/registry:/registry -p 43:4343 --rm whois42d-ng
+```

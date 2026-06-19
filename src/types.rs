@@ -7,6 +7,7 @@ pub const ALL_TYPES: &[&str] = &[
     "organisation",
     "tinc-keyset",
     "tinc-key",
+    "key-cert",
     "as-set",
     "route-set",
     "inetnum",
@@ -30,7 +31,7 @@ pub fn candidate_types(object: &str) -> Vec<&'static str> {
     if lower.ends_with(".dn42") {
         result.push("dns");
     }
-    if upper.ends_with("-DN42") {
+    if upper.ends_with("-DN42") || upper.ends_with("-NEONETWORK") {
         result.push("person");
     }
     if upper.ends_with("-MNT") {
@@ -46,6 +47,9 @@ pub fn candidate_types(object: &str) -> Vec<&'static str> {
         result.push("tinc-keyset");
     } else if upper.ends_with("-TINC") {
         result.push("tinc-key");
+    }
+    if upper.starts_with("PGPKEY-") {
+        result.push("key-cert");
     }
     if upper.starts_with("AS") {
         result.push("as-set");
