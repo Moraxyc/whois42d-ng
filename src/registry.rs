@@ -6,7 +6,7 @@ use std::path::{Component, Path, PathBuf};
 
 use crate::cidr::RegistryCidr;
 use crate::response;
-use crate::types::candidate_types;
+use crate::types::{candidate_types, is_telephony_name};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Query {
@@ -82,7 +82,10 @@ impl Registry {
                 continue;
             }
             let object_name = normalized_object_name(object_type, object);
-            if self.render_file(output, object_type, &object_name)? {
+            if self.render_file(output, object_type, &object_name)?
+                || (object_type == "telephony"
+                    && self.render_matching_telephony_prefix(output, &object_name)?)
+            {
                 found = true;
             }
         }
@@ -131,6 +134,38 @@ impl Registry {
             }
         }
         Ok(found)
+    }
+
+    fn render_matching_telephony_prefix(
+        &self,
+        output: &mut String,
+        object: &str,
+    ) -> io::Result<bool> {
+        let dir = self.data_path.join("telephony");
+        let Ok(entries) = fs::read_dir(dir) else {
+            return Ok(false);
+        };
+
+        let mut best_match: Option<String> = None;
+        for entry in entries.flatten() {
+            let name = entry.file_name();
+            let Some(name) = name.to_str() else {
+                continue;
+            };
+            if is_telephony_name(name)
+                && object.starts_with(name)
+                && best_match
+                    .as_ref()
+                    .is_none_or(|current| current.len() < name.len())
+            {
+                best_match = Some(name.to_string());
+            }
+        }
+
+        let Some(name) = best_match else {
+            return Ok(false);
+        };
+        self.render_file(output, "telephony", &name)
     }
 
     fn render_file(

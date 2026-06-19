@@ -32,10 +32,7 @@ pub fn candidate_types(object: &str) -> Vec<&'static str> {
     if lower.ends_with(".dn42") {
         result.push("dns");
     }
-    if object.starts_with('+')
-        && !object[1..].is_empty()
-        && object[1..].chars().all(|c| c.is_ascii_digit())
-    {
+    if is_telephony_name(object) {
         result.push("telephony");
     }
     if upper.ends_with("-DN42") || upper.ends_with("-NEONETWORK") {
@@ -69,6 +66,12 @@ pub fn candidate_types(object: &str) -> Vec<&'static str> {
     }
 
     result
+}
+
+pub fn is_telephony_name(value: &str) -> bool {
+    value.starts_with('+')
+        && !value[1..].is_empty()
+        && value[1..].chars().all(|c| c.is_ascii_digit())
 }
 
 fn is_as_block(object: &str) -> bool {
