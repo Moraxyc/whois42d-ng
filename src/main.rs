@@ -31,18 +31,25 @@ fn run() -> std::io::Result<()> {
 }
 
 fn run_daemon(options: Options) -> std::io::Result<()> {
-    let registry = Registry::new(options.registry_data_path()?);
+    log::info!("starting whois42d-ng daemon");
+    let data_path = options.registry_data_path()?;
+    log::info!("serving registry from {}", data_path.display());
+    let registry = Registry::new(data_path);
     let listeners = tcp_listeners_from_env()?;
     let shutdown = shutdown_flag()?;
 
     if listeners.is_empty() {
+        let listen_addr = options.listen_addr();
+        log::info!("binding to {listen_addr}");
         serve_listener_until_idle(
-            TcpListener::bind(options.listen_addr())?,
+            TcpListener::bind(&listen_addr)?,
             registry,
             std::time::Duration::MAX,
             shutdown,
         )
     } else {
+        log::info!("socket activation: {} listener(s)", listeners.len());
+        log::info!("socket activation idle timeout: {:?}", options.timeout);
         let mut workers = Vec::new();
         for listener in listeners {
             let registry = registry.clone();

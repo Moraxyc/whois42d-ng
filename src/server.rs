@@ -10,7 +10,7 @@ use std::time::{Duration, Instant};
 use clap::{CommandFactory, Parser, Subcommand, ValueHint};
 use clap_complete::{Shell, generate};
 
-use crate::protocol::{MAX_QUERY_LEN, QueryLineError, read_query_line};
+use crate::protocol::{MAX_QUERY_LEN, QueryLineError, query_log_text, read_query_line};
 use crate::registry::Registry;
 
 #[derive(Debug, Clone, Parser, PartialEq, Eq)]
@@ -107,21 +107,41 @@ fn parse_timeout(value: &str) -> Result<Duration, String> {
 }
 
 pub fn serve_one(mut stream: TcpStream, registry: &Registry) -> io::Result<()> {
+    let started = Instant::now();
+    if let Ok(peer) = stream.peer_addr() {
+        log::debug!("accepted connection from {peer}");
+    }
+
     stream.set_read_timeout(Some(Duration::from_secs(5)))?;
     let mut buffer = [0; MAX_QUERY_LEN + 2];
     let count = stream.read(&mut buffer)?;
     let response = match read_query_line(&buffer[..count]) {
-        Ok(query) => registry.handle_query(&query)?,
-        Err(QueryLineError::TooLong) => "% error: query too long\n".to_string(),
-        Err(_) => "% error: invalid query\n".to_string(),
+        Ok(query) => {
+            log::debug!("query: {}", query_log_text(&query));
+            registry.handle_query(&query)?
+        }
+        Err(QueryLineError::TooLong) => {
+            log::debug!("rejected overlong query line");
+            "% error: query too long\n".to_string()
+        }
+        Err(_) => {
+            log::debug!("rejected invalid query line");
+            "% error: invalid query\n".to_string()
+        }
     };
-    stream.write_all(response.as_bytes())
+    stream.write_all(response.as_bytes())?;
+    log::debug!("completed request in {:?}", started.elapsed());
+    Ok(())
 }
 
 pub fn serve_listener(listener: TcpListener, registry: Registry) -> io::Result<()> {
     for stream in listener.incoming() {
         match stream {
-            Ok(stream) => serve_one(stream, &registry)?,
+            Ok(stream) => {
+                if let Err(err) = serve_one(stream, &registry) {
+                    log::warn!("connection failed: {err}");
+                }
+            }
             Err(err) => return Err(err),
         }
     }
@@ -141,16 +161,23 @@ pub fn serve_listener_until_idle(
         match listener.accept() {
             Ok((stream, _)) => {
                 last_connection = Instant::now();
-                serve_one(stream, &registry)?;
+                if let Err(err) = serve_one(stream, &registry) {
+                    log::warn!("connection failed: {err}");
+                }
             }
             Err(err) if err.kind() == ErrorKind::WouldBlock => {
                 if !idle_timeout.is_zero() && last_connection.elapsed() >= idle_timeout {
+                    log::info!("listener idle for {:?}, exiting", idle_timeout);
                     break;
                 }
                 std::thread::sleep(Duration::from_millis(25));
             }
             Err(err) => return Err(err),
         }
+    }
+
+    if shutdown.load(Ordering::Relaxed) {
+        log::info!("listener exiting: shutdown requested");
     }
 
     Ok(())

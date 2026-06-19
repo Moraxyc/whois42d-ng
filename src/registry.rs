@@ -157,7 +157,7 @@ impl Registry {
             }
             Err(err) if err.kind() == io::ErrorKind::NotFound => Ok(false),
             Err(err) => {
-                eprintln!("Error reading {}: {err}", path.display());
+                log::warn!("failed to read registry object {}: {err}", path.display());
                 Ok(false)
             }
         }
