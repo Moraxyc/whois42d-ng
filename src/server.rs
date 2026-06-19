@@ -90,10 +90,15 @@ impl Options {
     }
 
     pub fn listen_addr(&self) -> String {
-        if self.address.contains(':') {
-            format!("[{}]:{}", self.address, self.port)
+        let addr = if self.address.is_empty() {
+            "127.0.0.1"
         } else {
-            format!("{}:{}", self.address, self.port)
+            &self.address
+        };
+        if addr.contains(':') {
+            format!("[{addr}]:{}", self.port)
+        } else {
+            format!("{addr}:{}", self.port)
         }
     }
 }
