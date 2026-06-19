@@ -90,7 +90,11 @@ impl Options {
     }
 
     pub fn listen_addr(&self) -> String {
-        format!("{}:{}", self.address, self.port)
+        if self.address.contains(':') {
+            format!("[{}]:{}", self.address, self.port)
+        } else {
+            format!("{}:{}", self.address, self.port)
+        }
     }
 }
 
