@@ -1,6 +1,36 @@
 [Unit]
-Description=Whois dn42 daemon
+Description=dn42 whois daemon
+Documentation=https://github.com/Moraxyc/whois42d-ng
+After=network-online.target
+Wants=network-online.target
 
 [Service]
+Type=exec
 ExecStart=/usr/local/bin/whois42d-ng --registry /var/lib/whois42d/registry
-User=nobody
+StateDirectory=whois42d
+UMask=0027
+Restart=on-failure
+RestartSec=5s
+
+AmbientCapabilities=
+CapabilityBoundingSet=
+LockPersonality=yes
+MemoryDenyWriteExecute=yes
+NoNewPrivileges=yes
+PrivateDevices=yes
+PrivateTmp=yes
+ProtectClock=yes
+ProtectControlGroups=yes
+ProtectHome=true
+ProtectHostname=yes
+ProtectKernelLogs=yes
+ProtectKernelModules=yes
+ProtectKernelTunables=yes
+ProtectSystem=strict
+RestrictAddressFamilies=AF_INET AF_INET6 AF_UNIX
+RestrictNamespaces=yes
+RestrictRealtime=yes
+RestrictSUIDSGID=yes
+SystemCallArchitectures=native
+SystemCallErrorNumber=EPERM
+SystemCallFilter=@system-service
