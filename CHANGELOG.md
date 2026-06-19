@@ -1,3 +1,47 @@
+# Changelog
+
+All notable changes to this project will be documented in this file.
+
+The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
+and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+
+## [Unreleased]
+## [1.0.1](https://github.com/Moraxyc/whois42d-ng/compare/v1.0.0...v1.0.1) - 2026-06-19
+
+
+### 🐛 Bug Fixes
+
+
+- Use explicit 127.0.0.1 for empty bind address
+
+
+
+### 💬 Other
+
+
+- Switch to musl build on Alpine
+
+
+
+### 📚 Documentation
+
+
+- Update README to reference whois42d-ng service/socket files
+
+
+
+### 👷 CI
+
+
+- Update
+
+- Add cargo-semver-checks
+
+- Use release-pr
+
+- Add changelog template
+
+
 ## [1.0.0] - 2026-06-19
 
 ### 🚀 Features
