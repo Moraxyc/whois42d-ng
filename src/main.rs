@@ -9,10 +9,11 @@ use whois42d_ng::signals::shutdown_flag;
 use whois42d_ng::socket_activation::{notify_ready, tcp_listeners_from_env};
 
 fn main() -> ExitCode {
+    env_logger::Builder::from_env(env_logger::Env::default().default_filter_or("info")).init();
     match run() {
         Ok(()) => ExitCode::SUCCESS,
         Err(err) => {
-            eprintln!("Error: {err}");
+            log::error!("{err}");
             ExitCode::FAILURE
         }
     }
@@ -30,15 +31,22 @@ fn run() -> std::io::Result<()> {
 }
 
 fn run_daemon(options: Options) -> std::io::Result<()> {
-    let registry = Registry::new(options.registry_data_path()?);
+    log::info!("starting whois42d-ng daemon");
+    let data_path = options.registry_data_path()?;
+    log::info!("serving registry from {}", data_path.display());
+    let registry = Registry::new(data_path);
     let listeners = tcp_listeners_from_env()?;
     let shutdown = shutdown_flag()?;
 
     if listeners.is_empty() {
-        let listener = TcpListener::bind(options.listen_addr())?;
+        let listen_addr = options.listen_addr();
+        log::info!("binding to {listen_addr}");
+        let listener = TcpListener::bind(listen_addr)?;
         notify_ready()?;
         serve_listener_until_idle(listener, registry, std::time::Duration::MAX, shutdown)
     } else {
+        log::info!("socket activation: {} listener(s)", listeners.len());
+        log::info!("socket activation idle timeout: {:?}", options.timeout);
         notify_ready()?;
         let mut workers = Vec::new();
         for listener in listeners {
