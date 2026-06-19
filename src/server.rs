@@ -40,7 +40,7 @@ pub enum CliCommand {
 
 #[derive(Debug, Clone, clap::Args, PartialEq, Eq)]
 pub struct Options {
-    /// Address to bind. Use '*' to bind all interfaces.
+    /// Address to bind. Use 0.0.0.0 or :: to bind all interfaces.
     #[arg(long, default_value = "", value_parser = parse_address)]
     pub address: String,
     /// TCP port to listen on.
@@ -104,10 +104,11 @@ impl Options {
 }
 
 fn parse_address(value: &str) -> Result<String, String> {
-    Ok(match value {
-        "*" => String::new(),
-        value => value.to_string(),
-    })
+    if value == "*" {
+        return Err("'*' is not supported; use 0.0.0.0 or :: to bind all interfaces".to_string());
+    }
+
+    Ok(value.to_string())
 }
 
 fn parse_timeout(value: &str) -> Result<Duration, String> {
