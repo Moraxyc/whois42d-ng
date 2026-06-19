@@ -9,10 +9,11 @@ use whois42d_ng::signals::shutdown_flag;
 use whois42d_ng::socket_activation::tcp_listeners_from_env;
 
 fn main() -> ExitCode {
+    env_logger::Builder::from_env(env_logger::Env::default().default_filter_or("info")).init();
     match run() {
         Ok(()) => ExitCode::SUCCESS,
         Err(err) => {
-            eprintln!("Error: {err}");
+            log::error!("{err}");
             ExitCode::FAILURE
         }
     }
