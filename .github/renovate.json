@@ -5,6 +5,9 @@
   ],
   "dependencyDashboard": true,
   "automerge": true,
+  "nix": {
+    "enabled": true
+  },
   "lockFileMaintenance": {
     "enabled": true,
     "schedule": [
