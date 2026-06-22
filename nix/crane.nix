@@ -9,17 +9,24 @@
       ...
     }:
     let
+      enableSystemd = pkgs.stdenv.hostPlatform.isLinux;
       commonArgs = {
         inherit src;
         strictDeps = true;
         __structuredAttrs = true;
+        cargoExtraArgs = lib.optionalString (!enableSystemd) "--no-default-features";
+
+        __darwinAllowLocalNetworking = true;
 
         nativeBuildInputs = with pkgs; [
           pkg-config
         ];
-        buildInputs = with pkgs; [
-          systemd
-        ];
+        buildInputs = lib.optionals enableSystemd (
+          with pkgs;
+          [
+            systemd
+          ]
+        );
       };
       src = lib.fileset.toSource {
         root = ./..;
@@ -39,17 +46,18 @@
             ++ [
               installShellFiles
             ];
-          postInstall = ''
-            substituteInPlace resources/whois42d-ng.service \
-              --replace-fail '/usr/local/bin' "$out/bin"
-            install -Dm644 resources/whois42d-ng.{service,socket} -t $out/lib/systemd/system
-          ''
-          + lib.optionalString (pkgs.stdenv.buildPlatform.canExecute pkgs.stdenv.hostPlatform) ''
-            installShellCompletion --cmd whois42d-ng \
-              --zsh <($out/bin/whois42d-ng completions zsh) \
-              --bash <($out/bin/whois42d-ng completions bash) \
-              --fish <($out/bin/whois42d-ng completions fish)
-          '';
+          postInstall =
+            lib.optionalString enableSystemd ''
+              substituteInPlace resources/whois42d-ng.service \
+                --replace-fail '/usr/local/bin' "$out/bin"
+              install -Dm644 resources/whois42d-ng.{service,socket} -t $out/lib/systemd/system
+            ''
+            + lib.optionalString (pkgs.stdenv.buildPlatform.canExecute pkgs.stdenv.hostPlatform) ''
+              installShellCompletion --cmd whois42d-ng \
+                --zsh <($out/bin/whois42d-ng completions zsh) \
+                --bash <($out/bin/whois42d-ng completions bash) \
+                --fish <($out/bin/whois42d-ng completions fish)
+            '';
         }
       );
       cargoArtifacts = craneLib.buildDepsOnly commonArgs;
