@@ -1,7 +1,9 @@
 pub mod cidr;
 pub mod protocol;
+pub mod rdap;
 pub mod registry;
 pub mod response;
+pub mod rpsl;
 pub mod server;
 pub mod signals;
 pub mod socket_activation;

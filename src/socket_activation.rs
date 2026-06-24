@@ -1,4 +1,4 @@
-use std::io;
+use std::{collections::HashMap, io};
 
 #[cfg(all(feature = "systemd", unix))]
 use std::os::fd::RawFd;
@@ -34,9 +34,10 @@ pub fn tcp_listener_from_fd(_fd: i32) -> io::Result<std::net::TcpListener> {
 
 #[cfg(all(feature = "systemd", unix))]
 pub fn tcp_listeners_from_env() -> io::Result<Vec<std::net::TcpListener>> {
-    systemd::daemon::listen_fds(false)
-        .map_err(io::Error::other)?
-        .iter()
+    listener_fds_by_name()?
+        .remove(&None)
+        .unwrap_or_default()
+        .into_iter()
         .map(tcp_listener_from_fd)
         .collect()
 }
@@ -44,6 +45,28 @@ pub fn tcp_listeners_from_env() -> io::Result<Vec<std::net::TcpListener>> {
 #[cfg(not(all(feature = "systemd", unix)))]
 pub fn tcp_listeners_from_env() -> io::Result<Vec<std::net::TcpListener>> {
     Ok(Vec::new())
+}
+
+#[cfg(all(feature = "systemd", unix))]
+pub fn listener_fds_by_name() -> io::Result<HashMap<Option<String>, Vec<RawFd>>> {
+    let fds = systemd::daemon::listen_fds(false).map_err(io::Error::other)?;
+    let names = std::env::var("LISTEN_FDNAMES").unwrap_or_default();
+    let mut names = names.split(':');
+    let mut grouped: HashMap<Option<String>, Vec<RawFd>> = HashMap::new();
+
+    for fd in fds.iter() {
+        let name = names
+            .next()
+            .filter(|name| !name.is_empty())
+            .map(str::to_string);
+        grouped.entry(name).or_default().push(fd);
+    }
+    Ok(grouped)
+}
+
+#[cfg(not(all(feature = "systemd", unix)))]
+pub fn listener_fds_by_name() -> io::Result<HashMap<Option<String>, Vec<i32>>> {
+    Ok(HashMap::new())
 }
 
 #[cfg(all(feature = "systemd", unix))]

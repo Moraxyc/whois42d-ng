@@ -6,6 +6,7 @@ use std::path::{Component, Path, PathBuf};
 
 use crate::cidr::RegistryCidr;
 use crate::response;
+use crate::rpsl::RpslObject;
 use crate::types::{candidate_types, is_telephony_name};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -19,6 +20,14 @@ pub struct Query {
 #[derive(Debug, Clone)]
 pub struct Registry {
     data_path: PathBuf,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ObjectRef {
+    pub object_type: String,
+    pub object_name: String,
+    pub raw_text: String,
+    pub rpsl: RpslObject,
 }
 
 impl Registry {
@@ -64,6 +73,66 @@ impl Registry {
         Ok(output)
     }
 
+    pub fn lookup_object(
+        &self,
+        object_type: &str,
+        object_name: &str,
+    ) -> io::Result<Option<ObjectRef>> {
+        if unsafe_path_segment(object_type) || unsafe_path_segment(object_name) {
+            return Ok(None);
+        }
+
+        let path = self.data_path.join(object_type).join(object_name);
+        match fs::read_to_string(&path) {
+            Ok(raw_text) => Ok(Some(ObjectRef {
+                object_type: object_type.to_string(),
+                object_name: object_name.to_string(),
+                rpsl: RpslObject::parse(&raw_text),
+                raw_text,
+            })),
+            Err(err) if err.kind() == io::ErrorKind::NotFound => Ok(None),
+            Err(err) => {
+                log::warn!("failed to read registry object {}: {err}", path.display());
+                Ok(None)
+            }
+        }
+    }
+
+    pub fn lookup_ip(&self, addr: IpAddr) -> io::Result<Vec<ObjectRef>> {
+        let route_types = match addr {
+            IpAddr::V4(_) => ["inetnum", "route"],
+            IpAddr::V6(_) => ["inet6num", "route6"],
+        };
+        let mut matches = Vec::new();
+        for object_type in route_types {
+            let dir = self.data_path.join(object_type);
+            let Ok(entries) = fs::read_dir(dir) else {
+                continue;
+            };
+            for entry in entries.flatten() {
+                let name = entry.file_name();
+                let Some(name) = name.to_str() else {
+                    continue;
+                };
+                let Some(cidr) = RegistryCidr::parse_file_name(name) else {
+                    continue;
+                };
+                if cidr.contains(addr) {
+                    matches.push((cidr.prefix(), object_type, name.to_string()));
+                }
+            }
+        }
+
+        matches.sort_by_key(|entry| Reverse(entry.0));
+        let mut objects = Vec::new();
+        for (_, object_type, name) in matches {
+            if let Some(object) = self.lookup_object(object_type, &name)? {
+                objects.push(object);
+            }
+        }
+        Ok(objects)
+    }
+
     fn render_object_query(
         &self,
         output: &mut String,
@@ -99,39 +168,13 @@ impl Registry {
         type_filter: &[String],
         addr: IpAddr,
     ) -> io::Result<bool> {
-        let route_types = match addr {
-            IpAddr::V4(_) => ["inetnum", "route"],
-            IpAddr::V6(_) => ["inet6num", "route6"],
-        };
-        let mut matches = Vec::new();
-        for object_type in route_types {
-            if !type_allowed(type_filter, object_type) {
-                continue;
-            }
-            let dir = self.data_path.join(object_type);
-            let Ok(entries) = fs::read_dir(dir) else {
-                continue;
-            };
-            for entry in entries.flatten() {
-                let name = entry.file_name();
-                let Some(name) = name.to_str() else {
-                    continue;
-                };
-                let Some(cidr) = RegistryCidr::parse_file_name(name) else {
-                    continue;
-                };
-                if cidr.contains(addr) {
-                    matches.push((cidr.prefix(), object_type, name.to_string()));
-                }
-            }
-        }
-
-        matches.sort_by_key(|entry| Reverse(entry.0));
         let mut found = false;
-        for (_, object_type, name) in matches {
-            if self.render_file(output, object_type, &name)? {
-                found = true;
+        for object in self.lookup_ip(addr)? {
+            if !type_allowed(type_filter, &object.object_type) {
+                continue;
             }
+            render_object(output, &object);
+            found = true;
         }
         Ok(found)
     }
@@ -174,29 +217,25 @@ impl Registry {
         object_type: &str,
         object: &str,
     ) -> io::Result<bool> {
-        if unsafe_path_segment(object) {
-            return Ok(false);
-        }
-        let path = self.data_path.join(object_type).join(object);
-        match fs::read_to_string(&path) {
-            Ok(contents) => {
-                output.push_str(&format!(
-                    "% Information related to '{object_type}/{object}':\n"
-                ));
-                output.push_str(&contents);
-                if !contents.ends_with('\n') {
-                    output.push('\n');
-                }
-                output.push('\n');
-                Ok(true)
-            }
-            Err(err) if err.kind() == io::ErrorKind::NotFound => Ok(false),
-            Err(err) => {
-                log::warn!("failed to read registry object {}: {err}", path.display());
-                Ok(false)
-            }
+        if let Some(object) = self.lookup_object(object_type, object)? {
+            render_object(output, &object);
+            Ok(true)
+        } else {
+            Ok(false)
         }
     }
+}
+
+fn render_object(output: &mut String, object: &ObjectRef) {
+    output.push_str(&format!(
+        "% Information related to '{}/{}':\n",
+        object.object_type, object.object_name
+    ));
+    output.push_str(&object.raw_text);
+    if !object.raw_text.ends_with('\n') {
+        output.push('\n');
+    }
+    output.push('\n');
 }
 
 impl Query {

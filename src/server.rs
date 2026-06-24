@@ -54,6 +54,15 @@ pub struct Options {
     /// Socket activation idle timeout in seconds.
     #[arg(long, default_value = "10", value_parser = parse_timeout)]
     pub timeout: Duration,
+    /// RDAP HTTP listen address. Use 0.0.0.0 or :: to bind all interfaces.
+    #[arg(long, default_value = "", value_parser = parse_address)]
+    pub rdap_address: String,
+    /// RDAP HTTP listen port. 0 disables the explicit RDAP TCP listener.
+    #[arg(long, default_value_t = 0)]
+    pub rdap_port: u16,
+    /// Base URL for RDAP self links, for example https://rdap.example.dn42.
+    #[arg(long, default_value = "")]
+    pub rdap_base_url: String,
 }
 
 impl Default for Options {
@@ -63,6 +72,9 @@ impl Default for Options {
             port: 43,
             registry: PathBuf::from("."),
             timeout: Duration::from_secs(10),
+            rdap_address: String::new(),
+            rdap_port: 0,
+            rdap_base_url: String::new(),
         }
     }
 }
@@ -91,16 +103,24 @@ impl Options {
     }
 
     pub fn listen_addr(&self) -> String {
-        let addr = if self.address.is_empty() {
-            "127.0.0.1"
-        } else {
-            &self.address
-        };
-        if addr.contains(':') {
-            format!("[{addr}]:{}", self.port)
-        } else {
-            format!("{addr}:{}", self.port)
-        }
+        listen_addr(&self.address, self.port)
+    }
+
+    pub fn rdap_listen_addr(&self) -> String {
+        listen_addr(&self.rdap_address, self.rdap_port)
+    }
+}
+
+fn listen_addr(address: &str, port: u16) -> String {
+    let addr = if address.is_empty() {
+        "127.0.0.1"
+    } else {
+        address
+    };
+    if addr.contains(':') {
+        format!("[{addr}]:{port}")
+    } else {
+        format!("{addr}:{port}")
     }
 }
 

@@ -1,0 +1,13 @@
+[Unit]
+Description=dn42 rdap socket
+Documentation=https://github.com/Moraxyc/whois42d-ng
+
+[Socket]
+ListenStream=8443
+FileDescriptorName=rdap
+Accept=no
+NoDelay=true
+Service=whois42d-ng.service
+
+[Install]
+WantedBy=sockets.target

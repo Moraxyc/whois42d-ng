@@ -1,4 +1,5 @@
 use std::fs;
+use std::net::{IpAddr, Ipv4Addr};
 use std::path::PathBuf;
 
 use whois42d_ng::registry::Registry;
@@ -98,4 +99,37 @@ fn refuses_path_traversal_queries() {
     assert!(!response.contains("secret"));
 
     fs::remove_file(outside).expect("test secret should be removed");
+}
+
+#[test]
+fn looks_up_structured_object() {
+    let object = fixture_registry()
+        .lookup_object("aut-num", "AS4242423011")
+        .expect("lookup should not fail")
+        .expect("object should exist");
+
+    assert_eq!(object.object_type, "aut-num");
+    assert_eq!(object.object_name, "AS4242423011");
+    assert!(object.raw_text.contains("aut-num:            AS4242423011"));
+    assert_eq!(object.rpsl.get("as-name"), Some("MORAXYC-AS"));
+}
+
+#[test]
+fn structured_lookup_refuses_path_traversal() {
+    let object = fixture_registry()
+        .lookup_object("aut-num", "../secret")
+        .expect("lookup should not fail");
+
+    assert!(object.is_none());
+}
+
+#[test]
+fn looks_up_ip_objects_by_longest_prefix_first() {
+    let objects = fixture_registry()
+        .lookup_ip(IpAddr::V4(Ipv4Addr::new(172, 21, 86, 193)))
+        .expect("lookup should not fail");
+
+    assert_eq!(objects[0].object_type, "route");
+    assert_eq!(objects[0].object_name, "172.21.86.192_27");
+    assert_eq!(objects[0].rpsl.get("route"), Some("172.21.86.192/27"));
 }

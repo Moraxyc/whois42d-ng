@@ -28,6 +28,42 @@ fn parses_daemon_options() {
 }
 
 #[test]
+fn parses_rdap_options() {
+    let options = Options::parse_from([
+        "whois42d-ng",
+        "--rdap-address",
+        "::1",
+        "--rdap-port",
+        "8443",
+        "--rdap-base-url",
+        "https://rdap.example.dn42",
+    ])
+    .expect("options should parse");
+
+    assert_eq!(options.rdap_address, "::1");
+    assert_eq!(options.rdap_port, 8443);
+    assert_eq!(options.rdap_base_url, "https://rdap.example.dn42");
+    assert_eq!(options.rdap_listen_addr(), "[::1]:8443");
+}
+
+#[test]
+fn rdap_defaults_are_disabled() {
+    let options = Options::default();
+
+    assert_eq!(options.rdap_address, "");
+    assert_eq!(options.rdap_port, 0);
+    assert_eq!(options.rdap_base_url, "");
+}
+
+#[test]
+fn rejects_star_rdap_address() {
+    let err = Options::parse_from(["whois42d-ng", "--rdap-address", "*"])
+        .expect_err("star bind address should be rejected");
+
+    assert!(err.contains("'*' is not supported"));
+}
+
+#[test]
 fn validates_registry_data_path() {
     let options = Options::parse_from([
         "whois42d-ng",
