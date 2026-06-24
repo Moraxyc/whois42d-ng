@@ -26,6 +26,8 @@ pub struct Remark {
 
 #[derive(Debug, Serialize)]
 pub struct EntityRef {
+    #[serde(rename = "objectClassName")]
+    pub object_class_name: String,
     pub handle: String,
     pub roles: Vec<String>,
 }

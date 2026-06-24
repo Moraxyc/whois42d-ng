@@ -116,6 +116,7 @@ fn entity_refs(object: &ObjectRef) -> Vec<EntityRef> {
             .get_all(key)
             .into_iter()
             .map(move |handle| EntityRef {
+                object_class_name: "entity".to_string(),
                 handle: handle.to_ascii_uppercase(),
                 roles: vec![role.to_string()],
             })
