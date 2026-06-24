@@ -93,6 +93,9 @@ async fn serves_ip_network_with_route_remark() {
     assert_eq!(status, StatusCode::OK);
     assert_eq!(json["objectClassName"], "ip network");
     assert_eq!(json["handle"], "172.21.86.192_27");
+    assert_eq!(json["startAddress"], "172.21.86.192");
+    assert_eq!(json["endAddress"], "172.21.86.223");
+    assert_eq!(json["ipVersion"], "v4");
     assert_eq!(json["remarks"][0]["title"], "route");
 }
 

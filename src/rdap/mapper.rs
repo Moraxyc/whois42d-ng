@@ -1,3 +1,5 @@
+use ipnet::IpNet;
+
 use crate::rdap::model::{EntityRef, Link, RdapObject, Remark};
 use crate::registry::ObjectRef;
 
@@ -54,6 +56,11 @@ pub fn ip_network(
         query,
         query,
     );
+    if let Some((start, end, version)) = network_range(&object.object_name) {
+        response.start_address = Some(start);
+        response.end_address = Some(end);
+        response.ip_version = Some(version);
+    }
     response.entities = entity_refs(object);
     response.remarks = objects
         .iter()
@@ -107,6 +114,9 @@ fn base_object(
         entities: Vec::new(),
         start_autnum: None,
         end_autnum: None,
+        start_address: None,
+        end_address: None,
+        ip_version: None,
         remarks: Vec::new(),
         notices: vec![Remark {
             title: "Service Notice".to_string(),
@@ -114,6 +124,21 @@ fn base_object(
         }],
         status: vec!["active".to_string()],
         vcard_array: None,
+    }
+}
+
+fn network_range(name: &str) -> Option<(String, String, String)> {
+    match name.replace('_', "/").parse::<IpNet>().ok()? {
+        IpNet::V4(net) => Some((
+            net.network().to_string(),
+            net.broadcast().to_string(),
+            "v4".to_string(),
+        )),
+        IpNet::V6(net) => Some((
+            net.network().to_string(),
+            net.broadcast().to_string(),
+            "v6".to_string(),
+        )),
     }
 }
 

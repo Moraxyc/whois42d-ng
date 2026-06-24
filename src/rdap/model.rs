@@ -49,6 +49,12 @@ pub struct RdapObject {
     pub start_autnum: Option<u64>,
     #[serde(rename = "endAutnum", skip_serializing_if = "Option::is_none")]
     pub end_autnum: Option<u64>,
+    #[serde(rename = "startAddress", skip_serializing_if = "Option::is_none")]
+    pub start_address: Option<String>,
+    #[serde(rename = "endAddress", skip_serializing_if = "Option::is_none")]
+    pub end_address: Option<String>,
+    #[serde(rename = "ipVersion", skip_serializing_if = "Option::is_none")]
+    pub ip_version: Option<String>,
     #[serde(skip_serializing_if = "Vec::is_empty")]
     pub remarks: Vec<Remark>,
     #[serde(skip_serializing_if = "Vec::is_empty")]
