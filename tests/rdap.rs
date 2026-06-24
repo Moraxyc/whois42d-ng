@@ -80,6 +80,7 @@ async fn serves_person_entity() {
     assert_eq!(status, StatusCode::OK);
     assert_eq!(json["objectClassName"], "entity");
     assert_eq!(json["handle"], "MORAXYC-DN42");
+    assert_eq!(json["notices"][0]["title"], "Service Notice");
     assert_eq!(json["vcardArray"][1][0][3], "Moraxyc");
 }
 

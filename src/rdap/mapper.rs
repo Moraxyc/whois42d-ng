@@ -102,6 +102,10 @@ fn base_object(
             .collect(),
         entities: Vec::new(),
         remarks: Vec::new(),
+        notices: vec![Remark {
+            title: "Service Notice".to_string(),
+            description: vec!["This RDAP service provides DN42 registry data.".to_string()],
+        }],
         status: vec!["active".to_string()],
         vcard_array: None,
     }
