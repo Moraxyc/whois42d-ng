@@ -47,6 +47,7 @@ pub struct RdapObject {
     pub entities: Vec<EntityRef>,
     #[serde(skip_serializing_if = "Vec::is_empty")]
     pub remarks: Vec<Remark>,
+    pub status: Vec<String>,
     #[serde(rename = "vcardArray", skip_serializing_if = "Option::is_none")]
     pub vcard_array: Option<Value>,
 }

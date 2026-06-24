@@ -102,6 +102,7 @@ fn base_object(
             .collect(),
         entities: Vec::new(),
         remarks: Vec::new(),
+        status: vec!["active".to_string()],
         vcard_array: None,
     }
 }
