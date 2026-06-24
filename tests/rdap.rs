@@ -53,6 +53,14 @@ async fn serves_autnum_with_and_without_as_prefix() {
         prefixed["links"][0]["href"],
         "https://rdap.example.dn42/rdap/autnum/AS4242423011"
     );
+    assert_eq!(
+        bare["links"][0]["value"],
+        "https://rdap.example.dn42/rdap/autnum/4242423011"
+    );
+    assert_eq!(
+        bare["links"][0]["href"],
+        "https://rdap.example.dn42/rdap/autnum/AS4242423011"
+    );
 }
 
 #[tokio::test]

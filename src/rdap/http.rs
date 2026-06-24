@@ -42,7 +42,7 @@ async fn handle_autnum(State(state): State<RdapState>, Path(asn): Path<String>) 
     };
     rdap_json(
         StatusCode::OK,
-        mapper::autnum(&object, state.base_url.as_deref()),
+        mapper::autnum(&object, state.base_url.as_deref(), &asn),
     )
 }
 
@@ -65,7 +65,7 @@ async fn handle_domain(State(state): State<RdapState>, Path(name): Path<String>)
     };
     rdap_json(
         StatusCode::OK,
-        mapper::domain(&object, state.base_url.as_deref()),
+        mapper::domain(&object, state.base_url.as_deref(), &name),
     )
 }
 
@@ -94,7 +94,7 @@ async fn handle_entity(State(state): State<RdapState>, Path(handle): Path<String
     };
     rdap_json(
         StatusCode::OK,
-        mapper::entity(&object, state.base_url.as_deref()),
+        mapper::entity(&object, state.base_url.as_deref(), &handle),
     )
 }
 

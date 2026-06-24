@@ -1,9 +1,9 @@
 use crate::rdap::model::{EntityRef, Link, RdapObject, Remark};
 use crate::registry::ObjectRef;
 
-pub fn autnum(object: &ObjectRef, base_url: Option<&str>) -> RdapObject {
+pub fn autnum(object: &ObjectRef, base_url: Option<&str>, query: &str) -> RdapObject {
     let handle = object.object_name.to_ascii_uppercase();
-    let mut response = base_object("autnum", handle.clone(), base_url, "autnum", &handle);
+    let mut response = base_object("autnum", handle.clone(), base_url, "autnum", query, &handle);
     response.name = object.rpsl.get("as-name").map(str::to_string);
     response.entities = entity_refs(object);
     response.remarks = remarks(
@@ -15,17 +15,17 @@ pub fn autnum(object: &ObjectRef, base_url: Option<&str>) -> RdapObject {
     response
 }
 
-pub fn domain(object: &ObjectRef, base_url: Option<&str>) -> RdapObject {
+pub fn domain(object: &ObjectRef, base_url: Option<&str>, query: &str) -> RdapObject {
     let handle = object.object_name.to_ascii_lowercase();
-    let mut response = base_object("domain", handle.clone(), base_url, "domain", &handle);
+    let mut response = base_object("domain", handle.clone(), base_url, "domain", query, &handle);
     response.entities = entity_refs(object);
     response.remarks = remarks(object, &["domain", "admin-c", "tech-c", "zone-c", "source"]);
     response
 }
 
-pub fn entity(object: &ObjectRef, base_url: Option<&str>) -> RdapObject {
+pub fn entity(object: &ObjectRef, base_url: Option<&str>, query: &str) -> RdapObject {
     let handle = object.object_name.to_ascii_uppercase();
-    let mut response = base_object("entity", handle.clone(), base_url, "entity", &handle);
+    let mut response = base_object("entity", handle.clone(), base_url, "entity", query, &handle);
     let name = object
         .rpsl
         .get("person")
@@ -47,6 +47,7 @@ pub fn ip_network(
         object.object_name.clone(),
         base_url,
         "ip",
+        query,
         query,
     );
     response.entities = entity_refs(object);
@@ -74,9 +75,11 @@ fn base_object(
     handle: String,
     base_url: Option<&str>,
     route: &str,
-    path_value: &str,
+    value_path: &str,
+    href_path: &str,
 ) -> RdapObject {
-    let path_value = path_value.trim_start_matches('/');
+    let value_path = value_path.trim_start_matches('/');
+    let href_path = href_path.trim_start_matches('/');
     RdapObject {
         rdap_conformance: vec!["rdap_level_0".to_string()],
         object_class_name: class_name.to_string(),
@@ -85,12 +88,12 @@ fn base_object(
         links: base_url
             .map(|base_url| Link {
                 value: format!(
-                    "{}/rdap/{route}/{path_value}",
+                    "{}/rdap/{route}/{value_path}",
                     base_url.trim_end_matches('/')
                 ),
                 rel: "self".to_string(),
                 href: format!(
-                    "{}/rdap/{route}/{path_value}",
+                    "{}/rdap/{route}/{href_path}",
                     base_url.trim_end_matches('/')
                 ),
                 media_type: "application/rdap+json".to_string(),
