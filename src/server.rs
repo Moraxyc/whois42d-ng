@@ -9,6 +9,7 @@ use std::time::{Duration, Instant};
 
 use clap::{CommandFactory, Parser, Subcommand, ValueHint};
 use clap_complete::{Shell, generate};
+use tokio::io::{AsyncReadExt, AsyncWriteExt};
 
 use crate::protocol::{MAX_QUERY_LEN, QueryLineError, query_log_text, read_query_line};
 use crate::registry::Registry;
@@ -125,21 +126,48 @@ pub fn serve_one(mut stream: TcpStream, registry: &Registry) -> io::Result<()> {
     stream.set_read_timeout(Some(Duration::from_secs(5)))?;
     let mut buffer = [0; MAX_QUERY_LEN + 2];
     let count = stream.read(&mut buffer)?;
-    let response = match read_query_line(&buffer[..count]) {
+    let response = response_for_query_bytes(&buffer[..count], registry)?;
+    stream.write_all(response.as_bytes())?;
+    log::debug!("completed request in {:?}", started.elapsed());
+    Ok(())
+}
+
+pub fn response_for_query_bytes(buffer: &[u8], registry: &Registry) -> io::Result<String> {
+    match read_query_line(buffer) {
         Ok(query) => {
             log::debug!("query: {}", query_log_text(&query));
-            registry.handle_query(&query)?
+            registry.handle_query(&query)
         }
         Err(QueryLineError::TooLong) => {
             log::debug!("rejected overlong query line");
-            "% error: query too long\n".to_string()
+            Ok("% error: query too long\n".to_string())
         }
         Err(_) => {
             log::debug!("rejected invalid query line");
-            "% error: invalid query\n".to_string()
+            Ok("% error: invalid query\n".to_string())
         }
-    };
-    stream.write_all(response.as_bytes())?;
+    }
+}
+
+pub async fn serve_one_async(
+    mut stream: tokio::net::TcpStream,
+    registry: Registry,
+) -> io::Result<()> {
+    let started = Instant::now();
+    if let Ok(peer) = stream.peer_addr() {
+        log::debug!("accepted connection from {peer}");
+    }
+
+    let mut buffer = [0; MAX_QUERY_LEN + 2];
+    let count = tokio::time::timeout(Duration::from_secs(5), stream.read(&mut buffer))
+        .await
+        .map_err(|_| io::Error::new(ErrorKind::TimedOut, "connection read timed out"))??;
+    let buffer = buffer[..count].to_vec();
+    let response =
+        tokio::task::spawn_blocking(move || response_for_query_bytes(&buffer, &registry))
+            .await
+            .map_err(io::Error::other)??;
+    stream.write_all(response.as_bytes()).await?;
     log::debug!("completed request in {:?}", started.elapsed());
     Ok(())
 }
@@ -183,6 +211,42 @@ pub fn serve_listener_until_idle(
                 std::thread::sleep(Duration::from_millis(25));
             }
             Err(err) => return Err(err),
+        }
+    }
+
+    if shutdown.load(Ordering::Relaxed) {
+        log::info!("listener exiting: shutdown requested");
+    }
+
+    Ok(())
+}
+
+pub async fn serve_listener_until_idle_async(
+    listener: tokio::net::TcpListener,
+    registry: Registry,
+    idle_timeout: Duration,
+    shutdown: Arc<AtomicBool>,
+) -> io::Result<()> {
+    let mut last_connection = Instant::now();
+
+    while !shutdown.load(Ordering::Relaxed) {
+        match tokio::time::timeout(Duration::from_millis(25), listener.accept()).await {
+            Ok(Ok((stream, _))) => {
+                last_connection = Instant::now();
+                let registry = registry.clone();
+                tokio::spawn(async move {
+                    if let Err(err) = serve_one_async(stream, registry).await {
+                        log::warn!("connection failed: {err}");
+                    }
+                });
+            }
+            Ok(Err(err)) => return Err(err),
+            Err(_) => {
+                if !idle_timeout.is_zero() && last_connection.elapsed() >= idle_timeout {
+                    log::info!("listener idle for {:?}, exiting", idle_timeout);
+                    break;
+                }
+            }
         }
     }
 
