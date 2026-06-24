@@ -3,9 +3,17 @@ use ipnet::IpNet;
 use crate::rdap::model::{EntityRef, Link, RdapObject, Remark};
 use crate::registry::ObjectRef;
 
-pub fn autnum(object: &ObjectRef, base_url: Option<&str>, query: &str) -> RdapObject {
+pub fn autnum(object: &ObjectRef, base_url: Option<&str>, path: &str, query: &str) -> RdapObject {
     let handle = object.object_name.to_ascii_uppercase();
-    let mut response = base_object("autnum", handle.clone(), base_url, "autnum", query, &handle);
+    let mut response = base_object(
+        "autnum",
+        handle.clone(),
+        base_url,
+        path,
+        "autnum",
+        query,
+        &handle,
+    );
     if let Ok(value) = handle.trim_start_matches("AS").parse::<u64>() {
         response.start_autnum = Some(value);
         response.end_autnum = Some(value);
@@ -21,18 +29,34 @@ pub fn autnum(object: &ObjectRef, base_url: Option<&str>, query: &str) -> RdapOb
     response
 }
 
-pub fn domain(object: &ObjectRef, base_url: Option<&str>, query: &str) -> RdapObject {
+pub fn domain(object: &ObjectRef, base_url: Option<&str>, path: &str, query: &str) -> RdapObject {
     let handle = object.object_name.to_ascii_lowercase();
-    let mut response = base_object("domain", handle.clone(), base_url, "domain", query, &handle);
+    let mut response = base_object(
+        "domain",
+        handle.clone(),
+        base_url,
+        path,
+        "domain",
+        query,
+        &handle,
+    );
     response.ldh_name = Some(handle.clone());
     response.entities = entity_refs(object);
     response.remarks = remarks(object, &["domain", "admin-c", "tech-c", "zone-c", "source"]);
     response
 }
 
-pub fn entity(object: &ObjectRef, base_url: Option<&str>, query: &str) -> RdapObject {
+pub fn entity(object: &ObjectRef, base_url: Option<&str>, path: &str, query: &str) -> RdapObject {
     let handle = object.object_name.to_ascii_uppercase();
-    let mut response = base_object("entity", handle.clone(), base_url, "entity", query, &handle);
+    let mut response = base_object(
+        "entity",
+        handle.clone(),
+        base_url,
+        path,
+        "entity",
+        query,
+        &handle,
+    );
     let name = object
         .rpsl
         .get("person")
@@ -46,6 +70,7 @@ pub fn entity(object: &ObjectRef, base_url: Option<&str>, query: &str) -> RdapOb
 pub fn ip_network(
     objects: &[ObjectRef],
     base_url: Option<&str>,
+    path: &str,
     query: &str,
 ) -> Option<RdapObject> {
     let object = objects.first()?;
@@ -53,6 +78,7 @@ pub fn ip_network(
         "ip network",
         object.object_name.clone(),
         base_url,
+        path,
         "ip",
         query,
         query,
@@ -86,6 +112,7 @@ fn base_object(
     class_name: &str,
     handle: String,
     base_url: Option<&str>,
+    path: &str,
     route: &str,
     value_path: &str,
     href_path: &str,
@@ -101,13 +128,15 @@ fn base_object(
         links: base_url
             .map(|base_url| Link {
                 value: format!(
-                    "{}/rdap/{route}/{value_path}",
-                    base_url.trim_end_matches('/')
+                    "{}{}/{route}/{value_path}",
+                    base_url.trim_end_matches('/'),
+                    link_path(path)
                 ),
                 rel: "self".to_string(),
                 href: format!(
-                    "{}/rdap/{route}/{href_path}",
-                    base_url.trim_end_matches('/')
+                    "{}{}/{route}/{href_path}",
+                    base_url.trim_end_matches('/'),
+                    link_path(path)
                 ),
                 media_type: "application/rdap+json".to_string(),
             })
@@ -126,6 +155,14 @@ fn base_object(
         }],
         status: vec!["active".to_string()],
         vcard_array: None,
+    }
+}
+
+fn link_path(path: &str) -> &str {
+    if path == "/" {
+        ""
+    } else {
+        path.trim_end_matches('/')
     }
 }
 

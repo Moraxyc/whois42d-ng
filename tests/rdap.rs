@@ -7,14 +7,23 @@ use whois42d_ng::rdap::http::{RdapState, routes};
 use whois42d_ng::registry::Registry;
 
 fn app() -> axum::Router {
+    app_with_path("/rdap")
+}
+
+fn app_with_path(path: &str) -> axum::Router {
     routes(RdapState {
         registry: Registry::new(PathBuf::from("resources/fixtures/registry-3011/data")),
         base_url: Some("https://rdap.example.dn42".to_string()),
+        path: path.to_string(),
     })
 }
 
 async fn get(path: &str) -> (StatusCode, String, Value) {
-    let response = app()
+    get_from(app(), path).await
+}
+
+async fn get_from(app: axum::Router, path: &str) -> (StatusCode, String, Value) {
+    let response = app
         .oneshot(
             Request::builder()
                 .uri(path)

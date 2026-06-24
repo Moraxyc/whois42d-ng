@@ -63,6 +63,9 @@ pub struct Options {
     /// Base URL for RDAP self links, for example https://rdap.example.dn42.
     #[arg(long, default_value = "")]
     pub rdap_base_url: String,
+    /// RDAP HTTP path prefix.
+    #[arg(long, default_value = "/rdap", value_parser = parse_path)]
+    pub rdap_path: String,
 }
 
 impl Default for Options {
@@ -75,6 +78,7 @@ impl Default for Options {
             rdap_address: String::new(),
             rdap_port: 0,
             rdap_base_url: String::new(),
+            rdap_path: "/rdap".to_string(),
         }
     }
 }
@@ -130,6 +134,14 @@ fn parse_address(value: &str) -> Result<String, String> {
     }
 
     Ok(value.to_string())
+}
+
+fn parse_path(value: &str) -> Result<String, String> {
+    if !value.starts_with('/') {
+        return Err("path must start with '/'".to_string());
+    }
+    let path = value.trim_end_matches('/');
+    Ok(if path.is_empty() { "/" } else { path }.to_string())
 }
 
 fn parse_timeout(value: &str) -> Result<Duration, String> {

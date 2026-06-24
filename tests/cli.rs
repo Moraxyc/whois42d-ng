@@ -37,12 +37,15 @@ fn parses_rdap_options() {
         "8443",
         "--rdap-base-url",
         "https://rdap.example.dn42",
+        "--rdap-path",
+        "/",
     ])
     .expect("options should parse");
 
     assert_eq!(options.rdap_address, "::1");
     assert_eq!(options.rdap_port, 8443);
     assert_eq!(options.rdap_base_url, "https://rdap.example.dn42");
+    assert_eq!(options.rdap_path, "/");
     assert_eq!(options.rdap_listen_addr(), "[::1]:8443");
 }
 
@@ -53,6 +56,7 @@ fn rdap_defaults_are_disabled() {
     assert_eq!(options.rdap_address, "");
     assert_eq!(options.rdap_port, 0);
     assert_eq!(options.rdap_base_url, "");
+    assert_eq!(options.rdap_path, "/rdap");
 }
 
 #[test]
@@ -61,6 +65,14 @@ fn rejects_star_rdap_address() {
         .expect_err("star bind address should be rejected");
 
     assert!(err.contains("'*' is not supported"));
+}
+
+#[test]
+fn rejects_relative_rdap_path() {
+    let err = Options::parse_from(["whois42d-ng", "--rdap-path", "rdap"])
+        .expect_err("relative rdap path should be rejected");
+
+    assert!(err.contains("path must start with '/'"));
 }
 
 #[test]

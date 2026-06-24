@@ -84,6 +84,7 @@ async fn run_daemon(options: Options) -> std::io::Result<()> {
     let rdap_router = routes(RdapState {
         registry: registry.clone(),
         base_url: (!options.rdap_base_url.is_empty()).then_some(options.rdap_base_url.clone()),
+        path: options.rdap_path.clone(),
     });
     let mut rdap_workers = Vec::new();
     for listener in tokio_rdap_listeners {

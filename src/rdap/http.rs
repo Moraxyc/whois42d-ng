@@ -13,16 +13,23 @@ use crate::registry::Registry;
 pub struct RdapState {
     pub registry: Registry,
     pub base_url: Option<String>,
+    pub path: String,
 }
 
 pub fn routes(state: RdapState) -> Router {
-    Router::new()
-        .route("/rdap/autnum/{asn}", get(handle_autnum))
-        .route("/rdap/ip/{addr}", get(handle_ip))
-        .route("/rdap/ip/{addr}/{prefix}", get(handle_ip_prefix))
-        .route("/rdap/domain/{name}", get(handle_domain))
-        .route("/rdap/entity/{handle}", get(handle_entity))
-        .with_state(state)
+    let path = state.path.clone();
+    let router = Router::new()
+        .route("/autnum/{asn}", get(handle_autnum))
+        .route("/ip/{addr}", get(handle_ip))
+        .route("/ip/{addr}/{prefix}", get(handle_ip_prefix))
+        .route("/domain/{name}", get(handle_domain))
+        .route("/entity/{handle}", get(handle_entity))
+        .with_state(state);
+    if path == "/" {
+        router
+    } else {
+        Router::new().nest(&path, router)
+    }
 }
 
 async fn handle_autnum(State(state): State<RdapState>, Path(asn): Path<String>) -> Response {
@@ -42,7 +49,7 @@ async fn handle_autnum(State(state): State<RdapState>, Path(asn): Path<String>) 
     };
     rdap_json(
         StatusCode::OK,
-        mapper::autnum(&object, state.base_url.as_deref(), &asn),
+        mapper::autnum(&object, state.base_url.as_deref(), &state.path, &asn),
     )
 }
 
@@ -65,7 +72,7 @@ async fn handle_domain(State(state): State<RdapState>, Path(name): Path<String>)
     };
     rdap_json(
         StatusCode::OK,
-        mapper::domain(&object, state.base_url.as_deref(), &name),
+        mapper::domain(&object, state.base_url.as_deref(), &state.path, &name),
     )
 }
 
@@ -94,7 +101,7 @@ async fn handle_entity(State(state): State<RdapState>, Path(handle): Path<String
     };
     rdap_json(
         StatusCode::OK,
-        mapper::entity(&object, state.base_url.as_deref(), &handle),
+        mapper::entity(&object, state.base_url.as_deref(), &state.path, &handle),
     )
 }
 
@@ -114,7 +121,8 @@ async fn handle_ip(State(state): State<RdapState>, Path(addr): Path<String>) -> 
     };
     rdap_json(
         StatusCode::OK,
-        mapper::ip_network(&objects, state.base_url.as_deref(), &addr).expect("non-empty objects"),
+        mapper::ip_network(&objects, state.base_url.as_deref(), &state.path, &addr)
+            .expect("non-empty objects"),
     )
 }
 
@@ -146,7 +154,8 @@ async fn handle_ip_prefix(
     let query = format!("{addr}/{prefix_num}");
     rdap_json(
         StatusCode::OK,
-        mapper::ip_network(&[object], state.base_url.as_deref(), &query).expect("one object"),
+        mapper::ip_network(&[object], state.base_url.as_deref(), &state.path, &query)
+            .expect("one object"),
     )
 }
 
