@@ -45,6 +45,10 @@ pub struct RdapObject {
     pub links: Vec<Link>,
     #[serde(skip_serializing_if = "Vec::is_empty")]
     pub entities: Vec<EntityRef>,
+    #[serde(rename = "startAutnum", skip_serializing_if = "Option::is_none")]
+    pub start_autnum: Option<u64>,
+    #[serde(rename = "endAutnum", skip_serializing_if = "Option::is_none")]
+    pub end_autnum: Option<u64>,
     #[serde(skip_serializing_if = "Vec::is_empty")]
     pub remarks: Vec<Remark>,
     #[serde(skip_serializing_if = "Vec::is_empty")]

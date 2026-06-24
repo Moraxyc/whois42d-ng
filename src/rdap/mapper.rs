@@ -4,6 +4,10 @@ use crate::registry::ObjectRef;
 pub fn autnum(object: &ObjectRef, base_url: Option<&str>, query: &str) -> RdapObject {
     let handle = object.object_name.to_ascii_uppercase();
     let mut response = base_object("autnum", handle.clone(), base_url, "autnum", query, &handle);
+    if let Ok(value) = handle.trim_start_matches("AS").parse::<u64>() {
+        response.start_autnum = Some(value);
+        response.end_autnum = Some(value);
+    }
     response.name = object.rpsl.get("as-name").map(str::to_string);
     response.entities = entity_refs(object);
     response.remarks = remarks(
@@ -101,6 +105,8 @@ fn base_object(
             .into_iter()
             .collect(),
         entities: Vec::new(),
+        start_autnum: None,
+        end_autnum: None,
         remarks: Vec::new(),
         notices: vec![Remark {
             title: "Service Notice".to_string(),

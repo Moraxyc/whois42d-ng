@@ -48,6 +48,8 @@ async fn serves_autnum_with_and_without_as_prefix() {
     assert_eq!(bare["handle"], "AS4242423011");
     assert_eq!(prefixed["objectClassName"], "autnum");
     assert_eq!(prefixed["name"], "MORAXYC-AS");
+    assert_eq!(prefixed["startAutnum"], 4242423011u64);
+    assert_eq!(prefixed["endAutnum"], 4242423011u64);
     assert_eq!(prefixed["entities"][0]["objectClassName"], "entity");
     assert_eq!(
         prefixed["links"][0]["href"],
