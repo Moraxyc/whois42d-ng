@@ -24,6 +24,7 @@ pub fn autnum(object: &ObjectRef, base_url: Option<&str>, query: &str) -> RdapOb
 pub fn domain(object: &ObjectRef, base_url: Option<&str>, query: &str) -> RdapObject {
     let handle = object.object_name.to_ascii_lowercase();
     let mut response = base_object("domain", handle.clone(), base_url, "domain", query, &handle);
+    response.ldh_name = Some(handle.clone());
     response.entities = entity_refs(object);
     response.remarks = remarks(object, &["domain", "admin-c", "tech-c", "zone-c", "source"]);
     response
@@ -95,6 +96,7 @@ fn base_object(
         rdap_conformance: vec!["rdap_level_0".to_string()],
         object_class_name: class_name.to_string(),
         handle,
+        ldh_name: None,
         name: None,
         links: base_url
             .map(|base_url| Link {

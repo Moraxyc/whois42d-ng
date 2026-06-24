@@ -39,6 +39,8 @@ pub struct RdapObject {
     #[serde(rename = "objectClassName")]
     pub object_class_name: String,
     pub handle: String,
+    #[serde(rename = "ldhName", skip_serializing_if = "Option::is_none")]
+    pub ldh_name: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub name: Option<String>,
     #[serde(skip_serializing_if = "Vec::is_empty")]

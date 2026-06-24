@@ -72,6 +72,7 @@ async fn serves_domain_after_lowercasing() {
     assert_eq!(status, StatusCode::OK);
     assert_eq!(json["objectClassName"], "domain");
     assert_eq!(json["handle"], "moraxyc.dn42");
+    assert_eq!(json["ldhName"], "moraxyc.dn42");
     assert_eq!(json["status"][0], "active");
 }
 
