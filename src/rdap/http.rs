@@ -28,9 +28,13 @@ pub fn routes(state: RdapState) -> Router {
         .fallback(handle_not_found)
         .with_state(state);
     if path == "/" {
-        router
+        Router::new()
+            .route("/healthz", get(handle_healthz))
+            .merge(router)
     } else {
-        Router::new().nest(&path, router)
+        Router::new()
+            .route("/healthz", get(handle_healthz))
+            .nest(&path, router)
     }
 }
 
@@ -169,6 +173,18 @@ async fn handle_ip_prefix(
 
 async fn handle_not_found() -> Response {
     error(StatusCode::NOT_FOUND, "not found")
+}
+
+async fn handle_healthz() -> Response {
+    (
+        StatusCode::OK,
+        [(
+            header::CONTENT_TYPE,
+            HeaderValue::from_static("text/plain; charset=utf-8"),
+        )],
+        "ok",
+    )
+        .into_response()
 }
 
 fn autnum_name(value: &str) -> Option<String> {

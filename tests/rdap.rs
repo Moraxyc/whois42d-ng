@@ -289,3 +289,44 @@ async fn root_path_router_unmatched_path_returns_rdap_error() {
     assert_eq!(content_type, "application/rdap+json");
     assert_eq!(json["errorCode"], 404);
 }
+
+#[tokio::test]
+async fn healthz_returns_ok_with_nested_rdap_path() {
+    let response = app()
+        .oneshot(
+            Request::builder()
+                .uri("/healthz")
+                .body(Body::empty())
+                .expect("request should build"),
+        )
+        .await
+        .expect("request should run");
+    assert_eq!(response.status(), StatusCode::OK);
+    assert_eq!(
+        response
+            .headers()
+            .get(header::CONTENT_TYPE)
+            .expect("content type should exist")
+            .to_str()
+            .expect("content type should be ascii"),
+        "text/plain; charset=utf-8"
+    );
+    let body = axum::body::to_bytes(response.into_body(), usize::MAX)
+        .await
+        .expect("body should read");
+    assert_eq!(&body[..], b"ok");
+}
+
+#[tokio::test]
+async fn healthz_works_with_root_rdap_path() {
+    let response = app_with_path("/")
+        .oneshot(
+            Request::builder()
+                .uri("/healthz")
+                .body(Body::empty())
+                .expect("request should build"),
+        )
+        .await
+        .expect("request should run");
+    assert_eq!(response.status(), StatusCode::OK);
+}

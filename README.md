@@ -66,6 +66,26 @@ The daemon accepts `--address`, `--port`, `--registry`, and `--timeout`.
 
 Template queries using `-t` return an unsupported response.
 
+## RDAP HTTP Interface
+
+The daemon can additionally serve an RDAP-over-HTTP interface. Enable it with
+`--rdap-port` and optionally customize the listen address, path prefix, and
+self-link base URL:
+
+    $ whois42d-ng --registry /path/to/registry --rdap-port 1080
+
+Supported lookups under the configured `--rdap-path` (default `/rdap`):
+
+- autnum: `GET /rdap/autnum/AS4242423011`
+- ip: `GET /rdap/ip/172.21.86.193` or `GET /rdap/ip/172.21.86.192/27`
+- domain: `GET /rdap/domain/moraxyc.dn42`
+- entity: `GET /rdap/entity/MORAXYC-DN42`
+
+A liveness probe is exposed at a stable path outside the RDAP prefix:
+
+    $ curl http://localhost:1080/healthz
+    ok
+
 ## Build Docker Image
 
 Build a local Docker image:
