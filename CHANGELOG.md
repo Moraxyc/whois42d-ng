@@ -6,6 +6,70 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
+## [2.0.0](https://github.com/Moraxyc/whois42d-ng/compare/v1.1.0...v2.0.0) - 2026-07-03
+
+
+### 🚀 Features
+
+
+- Add CORS and self-links to RDAP entities
+
+- Allow set --rdap-path
+
+- Add RDAP HTTP JSON query interface
+
+
+
+### 🐛 Bug Fixes
+
+
+- Normalize RDAP IP prefix lookups
+
+- Avoid duplicate RDAP text remarks
+
+- Add RDAP domain ldhName
+
+- Add RDAP IP network range fields
+
+- Add RDAP autnum range fields
+
+- Add RDAP service notice
+
+- Add active status to RDAP objects
+
+- Distinguish RDAP link value and href
+
+- Include RDAP entity class on references
+
+
+
+### 💬 Other
+
+
+- Allow darwin build
+
+
+
+### ⚡ Performance
+
+
+- Improve RDAP error handling
+
+
+
+### ♻️ Refactor
+
+
+- Run whois server on tokio
+
+
+
+### 👷 CI
+
+
+- Enable nix lockfile maintaince
+
+
 ## [1.1.0](https://github.com/Moraxyc/whois42d-ng/compare/v1.0.1...v1.1.0) - 2026-06-19
 
 
