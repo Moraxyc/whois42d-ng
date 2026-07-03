@@ -172,6 +172,25 @@ async fn serves_rdap_ipv6_prefix_network() {
 }
 
 #[tokio::test]
+async fn serves_ip_prefix_after_normalizing_address() {
+    let (v4_status, _, _, v4_json) = get("/rdap/ip/172.21.86.193/27").await;
+    let (v6_status, _, _, v6_json) = get("/rdap/ip/FDEA:A10B:3D3A:0:0:0:0:1/48").await;
+
+    assert_eq!(v4_status, StatusCode::OK);
+    assert_eq!(v4_json["handle"], "172.21.86.192_27");
+    assert_eq!(
+        v4_json["links"][0]["href"],
+        "https://rdap.example.dn42/rdap/ip/172.21.86.192/27"
+    );
+    assert_eq!(v6_status, StatusCode::OK);
+    assert_eq!(v6_json["handle"], "fdea:a10b:3d3a::_48");
+    assert_eq!(
+        v6_json["links"][0]["href"],
+        "https://rdap.example.dn42/rdap/ip/fdea:a10b:3d3a::/48"
+    );
+}
+
+#[tokio::test]
 async fn invalid_ip_prefix_lengths_return_rdap_error() {
     let (v4_status, v4_content_type, _, v4_json) = get("/rdap/ip/172.21.86.192/33").await;
     let (v6_status, v6_content_type, _, v6_json) = get("/rdap/ip/fdea:a10b:3d3a::/129").await;

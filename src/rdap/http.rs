@@ -4,6 +4,7 @@ use axum::extract::{Path, State};
 use axum::http::{HeaderValue, StatusCode, header};
 use axum::response::{IntoResponse, Response};
 use axum::{Json, Router, routing::get};
+use ipnet::IpNet;
 
 use crate::rdap::mapper;
 use crate::rdap::model::RdapError;
@@ -137,12 +138,14 @@ async fn handle_ip_prefix(
     let Ok(ip) = addr.parse::<IpAddr>() else {
         return error(StatusCode::BAD_REQUEST, "invalid ip address");
     };
-    let object_type = match ip {
-        IpAddr::V4(_) if prefix_num <= 32 => "route",
-        IpAddr::V6(_) if prefix_num <= 128 => "route6",
-        _ => return error(StatusCode::BAD_REQUEST, "invalid prefix"),
+    let Ok(network) = IpNet::new(ip, prefix_num) else {
+        return error(StatusCode::BAD_REQUEST, "invalid prefix");
     };
-    let object_name = format!("{addr}_{prefix_num}");
+    let object_type = match network {
+        IpNet::V4(_) => "route",
+        IpNet::V6(_) => "route6",
+    };
+    let object_name = format!("{}_{}", network.network(), network.prefix_len());
     let registry = state.registry.clone();
     let lookup_name = object_name.clone();
     let result =
@@ -156,7 +159,7 @@ async fn handle_ip_prefix(
             return error(StatusCode::INTERNAL_SERVER_ERROR, "lookup failed");
         }
     };
-    let query = format!("{addr}/{prefix_num}");
+    let query = format!("{}/{}", network.network(), network.prefix_len());
     rdap_json(
         StatusCode::OK,
         mapper::ip_network(&[object], state.base_url.as_deref(), &state.path, &query)
