@@ -1,11 +1,23 @@
 use std::fs;
 use std::net::{IpAddr, Ipv4Addr};
 use std::path::PathBuf;
+use std::time::{SystemTime, UNIX_EPOCH};
 
 use whois42d_ng::registry::Registry;
 
 fn fixture_registry() -> Registry {
     Registry::new(PathBuf::from("resources/fixtures/registry-3011/data"))
+}
+
+fn temp_registry_path(label: &str) -> PathBuf {
+    let suffix = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .expect("system time should be after epoch")
+        .as_nanos();
+    std::env::temp_dir().join(format!(
+        "whois42d-ng-{label}-{}-{suffix}",
+        std::process::id()
+    ))
 }
 
 #[test]
@@ -121,6 +133,21 @@ fn structured_lookup_refuses_path_traversal() {
         .expect("lookup should not fail");
 
     assert!(object.is_none());
+}
+
+#[test]
+fn structured_lookup_returns_read_errors() {
+    let data_path = temp_registry_path("registry-read-error");
+    let object_path = data_path.join("aut-num").join("AS4242423999");
+    fs::create_dir_all(&object_path).expect("directory object path should be created");
+
+    let err = Registry::new(data_path.clone())
+        .lookup_object("aut-num", "AS4242423999")
+        .expect_err("directory object path should return an I/O error");
+
+    let _ = fs::remove_dir_all(data_path);
+
+    assert_ne!(err.kind(), std::io::ErrorKind::NotFound);
 }
 
 #[test]

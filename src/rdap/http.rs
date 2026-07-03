@@ -24,6 +24,7 @@ pub fn routes(state: RdapState) -> Router {
         .route("/ip/{addr}/{prefix}", get(handle_ip_prefix))
         .route("/domain/{name}", get(handle_domain))
         .route("/entity/{handle}", get(handle_entity))
+        .fallback(handle_not_found)
         .with_state(state);
     if path == "/" {
         router
@@ -133,11 +134,15 @@ async fn handle_ip_prefix(
     let Ok(prefix_num) = prefix.parse::<u8>() else {
         return error(StatusCode::BAD_REQUEST, "invalid prefix");
     };
-    let object_name = format!("{addr}_{prefix_num}");
     let Ok(ip) = addr.parse::<IpAddr>() else {
         return error(StatusCode::BAD_REQUEST, "invalid ip address");
     };
-    let object_type = if ip.is_ipv4() { "route" } else { "route6" };
+    let object_type = match ip {
+        IpAddr::V4(_) if prefix_num <= 32 => "route",
+        IpAddr::V6(_) if prefix_num <= 128 => "route6",
+        _ => return error(StatusCode::BAD_REQUEST, "invalid prefix"),
+    };
+    let object_name = format!("{addr}_{prefix_num}");
     let registry = state.registry.clone();
     let lookup_name = object_name.clone();
     let result =
@@ -157,6 +162,10 @@ async fn handle_ip_prefix(
         mapper::ip_network(&[object], state.base_url.as_deref(), &state.path, &query)
             .expect("one object"),
     )
+}
+
+async fn handle_not_found() -> Response {
+    error(StatusCode::NOT_FOUND, "not found")
 }
 
 fn autnum_name(value: &str) -> Option<String> {

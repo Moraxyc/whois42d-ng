@@ -91,10 +91,7 @@ impl Registry {
                 raw_text,
             })),
             Err(err) if err.kind() == io::ErrorKind::NotFound => Ok(None),
-            Err(err) => {
-                log::warn!("failed to read registry object {}: {err}", path.display());
-                Ok(None)
-            }
+            Err(err) => Err(err),
         }
     }
 
