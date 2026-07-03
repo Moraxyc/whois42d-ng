@@ -212,7 +212,9 @@ fn remarks(object: &ObjectRef, known: &[&str]) -> Vec<Remark> {
             .rpsl
             .fields
             .iter()
-            .filter(|(key, _)| !known.iter().any(|known| key.eq_ignore_ascii_case(known)))
+            .filter(|(key, _)| {
+                !known_text_field(key) && !known.iter().any(|known| key.eq_ignore_ascii_case(known))
+            })
             .map(|(key, value)| Remark {
                 title: key.clone(),
                 description: vec![value.clone()],
@@ -226,10 +228,14 @@ fn remarks_for_known_text(object: &ObjectRef) -> Vec<Remark> {
         .rpsl
         .fields
         .iter()
-        .filter(|(key, _)| key.eq_ignore_ascii_case("descr") || key.eq_ignore_ascii_case("remarks"))
+        .filter(|(key, _)| known_text_field(key))
         .map(|(key, value)| Remark {
             title: key.clone(),
             description: vec![value.clone()],
         })
         .collect()
+}
+
+fn known_text_field(key: &str) -> bool {
+    key.eq_ignore_ascii_case("descr") || key.eq_ignore_ascii_case("remarks")
 }

@@ -124,6 +124,15 @@ async fn serves_domain_after_lowercasing() {
     assert_eq!(json["handle"], "moraxyc.dn42");
     assert_eq!(json["ldhName"], "moraxyc.dn42");
     assert_eq!(json["status"][0], "active");
+    assert_eq!(
+        json["remarks"]
+            .as_array()
+            .expect("remarks should be an array")
+            .iter()
+            .filter(|remark| remark["title"].as_str() == Some("descr"))
+            .count(),
+        1
+    );
 }
 
 #[tokio::test]
