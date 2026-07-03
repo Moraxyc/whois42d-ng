@@ -50,7 +50,8 @@
             lib.optionalString enableSystemd ''
               substituteInPlace resources/whois42d-ng.service \
                 --replace-fail '/usr/local/bin' "$out/bin"
-              install -Dm644 resources/whois42d-ng.{service,socket} -t $out/lib/systemd/system
+              install -Dm444 resources/whois42d-ng.service -t $out/lib/systemd/system
+              install -Dm444 resources/whois42d-ng{,-rdap}.socket -t $out/lib/systemd/system
             ''
             + lib.optionalString (pkgs.stdenv.buildPlatform.canExecute pkgs.stdenv.hostPlatform) ''
               installShellCompletion --cmd whois42d-ng \
