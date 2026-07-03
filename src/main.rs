@@ -5,7 +5,9 @@ use whois42d_ng::rdap::http::{RdapState, routes};
 use whois42d_ng::registry::Registry;
 use whois42d_ng::server::{Cli, CliCommand, Options, serve_listener_until_idle_async};
 use whois42d_ng::signals::shutdown_flag;
-use whois42d_ng::socket_activation::{listener_fds_by_name, notify_ready, tcp_listener_from_fd};
+use whois42d_ng::socket_activation::{
+    listener_fds_by_name, notify_ready, split_listener_fds_by_role, tcp_listener_from_fd,
+};
 
 fn main() -> ExitCode {
     env_logger::Builder::from_env(env_logger::Env::default().default_filter_or("info")).init();
@@ -35,16 +37,12 @@ async fn run_daemon(options: Options) -> std::io::Result<()> {
     let data_path = options.registry_data_path()?;
     log::info!("serving registry from {}", data_path.display());
     let registry = Registry::new(data_path);
-    let mut activation = listener_fds_by_name()?;
-    let mut listeners: Vec<TcpListener> = activation
-        .remove(&None)
-        .unwrap_or_default()
+    let (whois_fds, rdap_fds) = split_listener_fds_by_role(listener_fds_by_name()?);
+    let mut listeners: Vec<TcpListener> = whois_fds
         .into_iter()
         .map(tcp_listener_from_fd)
         .collect::<std::io::Result<_>>()?;
-    let mut rdap_listeners: Vec<TcpListener> = activation
-        .remove(&Some("rdap".to_string()))
-        .unwrap_or_default()
+    let mut rdap_listeners: Vec<TcpListener> = rdap_fds
         .into_iter()
         .map(tcp_listener_from_fd)
         .collect::<std::io::Result<_>>()?;

@@ -1,4 +1,6 @@
 #[cfg(all(target_os = "linux", feature = "systemd"))]
+use std::collections::HashMap;
+#[cfg(all(target_os = "linux", feature = "systemd"))]
 use std::net::{TcpListener, TcpStream};
 #[cfg(all(target_os = "linux", feature = "systemd"))]
 use std::os::fd::{AsRawFd, IntoRawFd};
@@ -21,6 +23,22 @@ fn imports_listening_tcp_fd() {
 
     let _client = TcpStream::connect(addr).expect("client should connect");
     imported.accept().expect("imported listener should accept");
+}
+
+#[test]
+#[cfg(all(target_os = "linux", feature = "systemd"))]
+fn treats_non_rdap_activation_fds_as_whois() {
+    let mut activation = HashMap::new();
+    activation.insert(Some("whois42d-ng.socket".to_string()), vec![3, 4]);
+    activation.insert(Some("rdap".to_string()), vec![5, 6]);
+    activation.insert(None, vec![7]);
+
+    let (mut whois_fds, rdap_fds) =
+        whois42d_ng::socket_activation::split_listener_fds_by_role(activation);
+    whois_fds.sort_unstable();
+
+    assert_eq!(whois_fds, vec![3, 4, 7]);
+    assert_eq!(rdap_fds, vec![5, 6]);
 }
 
 #[test]

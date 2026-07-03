@@ -34,12 +34,8 @@ pub fn tcp_listener_from_fd(_fd: i32) -> io::Result<std::net::TcpListener> {
 
 #[cfg(all(feature = "systemd", unix))]
 pub fn tcp_listeners_from_env() -> io::Result<Vec<std::net::TcpListener>> {
-    listener_fds_by_name()?
-        .remove(&None)
-        .unwrap_or_default()
-        .into_iter()
-        .map(tcp_listener_from_fd)
-        .collect()
+    let (whois_fds, _) = split_listener_fds_by_role(listener_fds_by_name()?);
+    whois_fds.into_iter().map(tcp_listener_from_fd).collect()
 }
 
 #[cfg(not(all(feature = "systemd", unix)))]
@@ -64,9 +60,29 @@ pub fn listener_fds_by_name() -> io::Result<HashMap<Option<String>, Vec<RawFd>>>
     Ok(grouped)
 }
 
+#[cfg(all(feature = "systemd", unix))]
+pub fn split_listener_fds_by_role(
+    mut activation: HashMap<Option<String>, Vec<RawFd>>,
+) -> (Vec<RawFd>, Vec<RawFd>) {
+    let rdap_fds = activation
+        .remove(&Some("rdap".to_string()))
+        .unwrap_or_default();
+    let whois_fds = activation.into_values().flatten().collect();
+
+    (whois_fds, rdap_fds)
+}
+
 #[cfg(not(all(feature = "systemd", unix)))]
 pub fn listener_fds_by_name() -> io::Result<HashMap<Option<String>, Vec<i32>>> {
     Ok(HashMap::new())
+}
+
+#[cfg(not(all(feature = "systemd", unix)))]
+pub fn split_listener_fds_by_role(
+    activation: HashMap<Option<String>, Vec<i32>>,
+) -> (Vec<i32>, Vec<i32>) {
+    let _ = activation;
+    (Vec::new(), Vec::new())
 }
 
 #[cfg(all(feature = "systemd", unix))]
