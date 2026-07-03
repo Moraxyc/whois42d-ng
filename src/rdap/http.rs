@@ -185,10 +185,16 @@ fn lookup_many<T>(
 fn rdap_json(status: StatusCode, body: impl serde::Serialize) -> Response {
     (
         status,
-        [(
-            header::CONTENT_TYPE,
-            HeaderValue::from_static("application/rdap+json"),
-        )],
+        [
+            (
+                header::CONTENT_TYPE,
+                HeaderValue::from_static("application/rdap+json"),
+            ),
+            (
+                header::ACCESS_CONTROL_ALLOW_ORIGIN,
+                HeaderValue::from_static("*"),
+            ),
+        ],
         Json(body),
     )
         .into_response()

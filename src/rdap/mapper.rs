@@ -19,7 +19,7 @@ pub fn autnum(object: &ObjectRef, base_url: Option<&str>, path: &str, query: &st
         response.end_autnum = Some(value);
     }
     response.name = object.rpsl.get("as-name").map(str::to_string);
-    response.entities = entity_refs(object);
+    response.entities = entity_refs(object, base_url, path);
     response.remarks = remarks(
         object,
         &[
@@ -41,7 +41,7 @@ pub fn domain(object: &ObjectRef, base_url: Option<&str>, path: &str, query: &st
         &handle,
     );
     response.ldh_name = Some(handle.clone());
-    response.entities = entity_refs(object);
+    response.entities = entity_refs(object, base_url, path);
     response.remarks = remarks(object, &["domain", "admin-c", "tech-c", "zone-c", "source"]);
     response
 }
@@ -88,7 +88,7 @@ pub fn ip_network(
         response.end_address = Some(end);
         response.ip_version = Some(version);
     }
-    response.entities = entity_refs(object);
+    response.entities = entity_refs(object, base_url, path);
     response.remarks = objects
         .iter()
         .flat_map(|object| {
@@ -125,23 +125,7 @@ fn base_object(
         handle,
         ldh_name: None,
         name: None,
-        links: base_url
-            .map(|base_url| Link {
-                value: format!(
-                    "{}{}/{route}/{value_path}",
-                    base_url.trim_end_matches('/'),
-                    link_path(path)
-                ),
-                rel: "self".to_string(),
-                href: format!(
-                    "{}{}/{route}/{href_path}",
-                    base_url.trim_end_matches('/'),
-                    link_path(path)
-                ),
-                media_type: "application/rdap+json".to_string(),
-            })
-            .into_iter()
-            .collect(),
+        links: vec![self_link(base_url, path, route, value_path, href_path)],
         entities: Vec::new(),
         start_autnum: None,
         end_autnum: None,
@@ -181,7 +165,7 @@ fn network_range(name: &str) -> Option<(String, String, String)> {
     }
 }
 
-fn entity_refs(object: &ObjectRef) -> Vec<EntityRef> {
+fn entity_refs(object: &ObjectRef, base_url: Option<&str>, path: &str) -> Vec<EntityRef> {
     [
         ("admin-c", "administrative"),
         ("tech-c", "technical"),
@@ -197,9 +181,28 @@ fn entity_refs(object: &ObjectRef) -> Vec<EntityRef> {
                 object_class_name: "entity".to_string(),
                 handle: handle.to_ascii_uppercase(),
                 roles: vec![role.to_string()],
+                links: vec![self_link(base_url, path, "entity", handle, handle)],
             })
     })
     .collect()
+}
+
+fn self_link(
+    base_url: Option<&str>,
+    path: &str,
+    route: &str,
+    value_path: &str,
+    href_path: &str,
+) -> Link {
+    let base_url = base_url.unwrap_or_default().trim_end_matches('/');
+    let value_path = value_path.trim_start_matches('/');
+    let href_path = href_path.trim_start_matches('/');
+    Link {
+        value: format!("{}{}/{route}/{value_path}", base_url, link_path(path)),
+        rel: "self".to_string(),
+        href: format!("{}{}/{route}/{href_path}", base_url, link_path(path)),
+        media_type: "application/rdap+json".to_string(),
+    }
 }
 
 fn remarks(object: &ObjectRef, known: &[&str]) -> Vec<Remark> {

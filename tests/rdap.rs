@@ -18,11 +18,11 @@ fn app_with_path(path: &str) -> axum::Router {
     })
 }
 
-async fn get(path: &str) -> (StatusCode, String, Value) {
+async fn get(path: &str) -> (StatusCode, String, Option<String>, Value) {
     get_from(app(), path).await
 }
 
-async fn get_from(app: axum::Router, path: &str) -> (StatusCode, String, Value) {
+async fn get_from(app: axum::Router, path: &str) -> (StatusCode, String, Option<String>, Value) {
     let response = app
         .oneshot(
             Request::builder()
@@ -40,17 +40,26 @@ async fn get_from(app: axum::Router, path: &str) -> (StatusCode, String, Value) 
         .to_str()
         .expect("content type should be ascii")
         .to_string();
+    let cors = response
+        .headers()
+        .get(header::ACCESS_CONTROL_ALLOW_ORIGIN)
+        .map(|value| {
+            value
+                .to_str()
+                .expect("cors header should be ascii")
+                .to_string()
+        });
     let body = axum::body::to_bytes(response.into_body(), usize::MAX)
         .await
         .expect("body should read");
     let json = serde_json::from_slice(&body).expect("body should be json");
-    (status, content_type, json)
+    (status, content_type, cors, json)
 }
 
 #[tokio::test]
 async fn serves_autnum_with_and_without_as_prefix() {
-    let (_, _, bare) = get("/rdap/autnum/4242423011").await;
-    let (status, content_type, prefixed) = get("/rdap/autnum/AS4242423011").await;
+    let (_, _, _, bare) = get("/rdap/autnum/4242423011").await;
+    let (status, content_type, _, prefixed) = get("/rdap/autnum/AS4242423011").await;
 
     assert_eq!(status, StatusCode::OK);
     assert_eq!(content_type, "application/rdap+json");
@@ -76,7 +85,7 @@ async fn serves_autnum_with_and_without_as_prefix() {
 
 #[tokio::test]
 async fn serves_domain_after_lowercasing() {
-    let (status, _, json) = get("/rdap/domain/MORAXYC.DN42").await;
+    let (status, _, _, json) = get("/rdap/domain/MORAXYC.DN42").await;
 
     assert_eq!(status, StatusCode::OK);
     assert_eq!(json["objectClassName"], "domain");
@@ -87,7 +96,7 @@ async fn serves_domain_after_lowercasing() {
 
 #[tokio::test]
 async fn serves_person_entity() {
-    let (status, _, json) = get("/rdap/entity/MORAXYC-DN42").await;
+    let (status, _, _, json) = get("/rdap/entity/MORAXYC-DN42").await;
 
     assert_eq!(status, StatusCode::OK);
     assert_eq!(json["objectClassName"], "entity");
@@ -98,7 +107,7 @@ async fn serves_person_entity() {
 
 #[tokio::test]
 async fn serves_ip_network_with_route_remark() {
-    let (status, _, json) = get("/rdap/ip/172.21.86.193").await;
+    let (status, _, _, json) = get("/rdap/ip/172.21.86.193").await;
 
     assert_eq!(status, StatusCode::OK);
     assert_eq!(json["objectClassName"], "ip network");
@@ -111,7 +120,7 @@ async fn serves_ip_network_with_route_remark() {
 
 #[tokio::test]
 async fn invalid_autnum_returns_rdap_error() {
-    let (status, content_type, json) = get("/rdap/autnum/not-an-asn").await;
+    let (status, content_type, _, json) = get("/rdap/autnum/not-an-asn").await;
 
     assert_eq!(status, StatusCode::BAD_REQUEST);
     assert_eq!(content_type, "application/rdap+json");
@@ -120,8 +129,27 @@ async fn invalid_autnum_returns_rdap_error() {
 
 #[tokio::test]
 async fn missing_object_returns_rdap_error() {
-    let (status, _, json) = get("/rdap/autnum/4242423999").await;
+    let (status, _, _, json) = get("/rdap/autnum/4242423999").await;
 
     assert_eq!(status, StatusCode::NOT_FOUND);
     assert_eq!(json["errorCode"], 404);
+}
+
+#[tokio::test]
+async fn default_rdap_response_has_cors_and_self_links() {
+    let app = routes(RdapState {
+        registry: Registry::new(PathBuf::from("resources/fixtures/registry-3011/data")),
+        base_url: None,
+        path: "/".to_string(),
+    });
+
+    let (status, _, cors, json) = get_from(app, "/domain/MORAXYC.DN42").await;
+
+    assert_eq!(status, StatusCode::OK);
+    assert_eq!(cors.as_deref(), Some("*"));
+    assert_eq!(json["links"][0]["href"], "/domain/moraxyc.dn42");
+    assert_eq!(
+        json["entities"][0]["links"][0]["href"],
+        "/entity/MORAXYC-DN42"
+    );
 }

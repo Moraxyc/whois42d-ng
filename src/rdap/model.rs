@@ -30,6 +30,8 @@ pub struct EntityRef {
     pub object_class_name: String,
     pub handle: String,
     pub roles: Vec<String>,
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub links: Vec<Link>,
 }
 
 #[derive(Debug, Serialize)]
