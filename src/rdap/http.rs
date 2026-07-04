@@ -185,7 +185,7 @@ async fn handle_bootstrap(State(state): State<RdapState>, Path(file): Path<Strin
     })
     .await;
     match result {
-        Ok(Ok(body)) => rdap_json(StatusCode::OK, body),
+        Ok(Ok(body)) => bootstrap_json(StatusCode::OK, body),
         Ok(Err(err)) => {
             log::warn!("rdap bootstrap build failed: {err}");
             error(StatusCode::INTERNAL_SERVER_ERROR, "bootstrap build failed")
@@ -237,13 +237,22 @@ fn lookup_many<T>(
 }
 
 fn rdap_json(status: StatusCode, body: impl serde::Serialize) -> Response {
+    json_response(status, "application/rdap+json", body)
+}
+
+fn bootstrap_json(status: StatusCode, body: impl serde::Serialize) -> Response {
+    json_response(status, "application/json", body)
+}
+
+fn json_response(
+    status: StatusCode,
+    content_type: &'static str,
+    body: impl serde::Serialize,
+) -> Response {
     (
         status,
         [
-            (
-                header::CONTENT_TYPE,
-                HeaderValue::from_static("application/rdap+json"),
-            ),
+            (header::CONTENT_TYPE, HeaderValue::from_static(content_type)),
             (
                 header::ACCESS_CONTROL_ALLOW_ORIGIN,
                 HeaderValue::from_static("*"),

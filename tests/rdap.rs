@@ -3,7 +3,7 @@ use axum::http::{Request, StatusCode, header};
 use serde_json::Value;
 use std::fs;
 use std::path::PathBuf;
-use std::time::{SystemTime, UNIX_EPOCH};
+use std::time::{Duration, SystemTime, UNIX_EPOCH};
 use tower::ServiceExt;
 use whois42d_ng::rdap::http::{RdapState, routes};
 use whois42d_ng::registry::Registry;
@@ -336,7 +336,7 @@ async fn bootstrap_asn_file_lists_autnum_numbers() {
     let (status, content_type, _, json) = get("/rdap/bootstrap/asn.json").await;
 
     assert_eq!(status, StatusCode::OK);
-    assert_eq!(content_type, "application/rdap+json");
+    assert_eq!(content_type, "application/json");
     assert_eq!(json["version"], "1.0");
     assert_eq!(json["services"][0][1][0], "https://rdap.example.dn42/rdap/");
     let entries = json["services"][0][0]
@@ -351,6 +351,18 @@ async fn bootstrap_asn_file_lists_autnum_numbers() {
 }
 
 #[tokio::test]
+async fn bootstrap_publication_is_stable_between_requests() {
+    let app = app();
+    let (_, _, _, first) = get_from(app.clone(), "/rdap/bootstrap/asn.json").await;
+
+    tokio::time::sleep(Duration::from_secs(1)).await;
+
+    let (_, _, _, second) = get_from(app, "/rdap/bootstrap/asn.json").await;
+
+    assert_eq!(first["publication"], second["publication"]);
+}
+
+#[tokio::test]
 async fn bootstrap_dns_file_lists_top_level_domains() {
     let (status, _, _, json) = get("/rdap/bootstrap/dns.json").await;
 
@@ -359,6 +371,29 @@ async fn bootstrap_dns_file_lists_top_level_domains() {
         .as_array()
         .expect("entries should be an array");
     assert!(entries.iter().any(|entry| entry == "dn42"));
+}
+
+#[tokio::test]
+async fn bootstrap_dns_entries_are_lowercase_top_level_labels() {
+    let data_path = temp_registry_path("rdap-bootstrap-dns");
+    fs::create_dir_all(data_path.join("dns")).expect("dns directory should be created");
+    fs::write(data_path.join("dns").join("MORAXYC.DN42"), "")
+        .expect("dns object should be created");
+    let app = routes(RdapState {
+        registry: Registry::new(data_path.clone()),
+        base_url: Some("https://rdap.example.dn42".to_string()),
+        path: "/rdap".to_string(),
+    });
+
+    let (status, _, _, json) = get_from(app, "/rdap/bootstrap/dns.json").await;
+    let _ = fs::remove_dir_all(data_path);
+
+    assert_eq!(status, StatusCode::OK);
+    let entries = json["services"][0][0]
+        .as_array()
+        .expect("entries should be an array");
+    assert!(entries.iter().any(|entry| entry == "dn42"));
+    assert!(entries.iter().all(|entry| entry != "DN42"));
 }
 
 #[tokio::test]
@@ -389,6 +424,31 @@ async fn bootstrap_ipv4_and_ipv6_files_list_registry_prefixes() {
 }
 
 #[tokio::test]
+async fn bootstrap_ipv6_entries_are_canonical() {
+    let data_path = temp_registry_path("rdap-bootstrap-ipv6");
+    fs::create_dir_all(data_path.join("route6")).expect("route6 directory should be created");
+    fs::write(
+        data_path.join("route6").join("FDEA:A10B:3D3A:0:0:0:0:0_48"),
+        "",
+    )
+    .expect("route6 object should be created");
+    let app = routes(RdapState {
+        registry: Registry::new(data_path.clone()),
+        base_url: Some("https://rdap.example.dn42".to_string()),
+        path: "/rdap".to_string(),
+    });
+
+    let (status, _, _, json) = get_from(app, "/rdap/bootstrap/ipv6.json").await;
+    let _ = fs::remove_dir_all(data_path);
+
+    assert_eq!(status, StatusCode::OK);
+    let entries = json["services"][0][0]
+        .as_array()
+        .expect("v6 entries should be an array");
+    assert!(entries.iter().any(|entry| entry == "fdea:a10b:3d3a::/48"));
+}
+
+#[tokio::test]
 async fn bootstrap_unknown_file_returns_rdap_error() {
     let (status, content_type, _, json) = get("/rdap/bootstrap/garbage.json").await;
 
@@ -407,7 +467,7 @@ async fn bootstrap_uses_root_path_and_absolute_base_url() {
 }
 
 #[tokio::test]
-async fn bootstrap_without_base_url_emits_relative_service_url() {
+async fn bootstrap_without_base_url_returns_rdap_error() {
     let app = routes(RdapState {
         registry: Registry::new(PathBuf::from("resources/fixtures/registry-3011/data")),
         base_url: None,
@@ -415,6 +475,28 @@ async fn bootstrap_without_base_url_emits_relative_service_url() {
     });
     let (status, _, _, json) = get_from(app, "/rdap/bootstrap/asn.json").await;
 
-    assert_eq!(status, StatusCode::OK);
-    assert_eq!(json["services"][0][1][0], "/rdap/");
+    assert_eq!(status, StatusCode::INTERNAL_SERVER_ERROR);
+    assert_eq!(json["errorCode"], 500);
+}
+
+#[tokio::test]
+async fn configured_rdap_base_url_path_is_not_duplicated() {
+    let app = routes(RdapState {
+        registry: Registry::new(PathBuf::from("resources/fixtures/registry-3011/data")),
+        base_url: Some("https://rdap.example.dn42/rdap/".to_string()),
+        path: "/rdap".to_string(),
+    });
+
+    let (_, _, _, domain) = get_from(app.clone(), "/rdap/domain/moraxyc.dn42").await;
+    let (bootstrap_status, _, _, bootstrap) = get_from(app, "/rdap/bootstrap/asn.json").await;
+
+    assert_eq!(
+        domain["links"][0]["href"],
+        "https://rdap.example.dn42/rdap/domain/moraxyc.dn42"
+    );
+    assert_eq!(bootstrap_status, StatusCode::OK);
+    assert_eq!(
+        bootstrap["services"][0][1][0],
+        "https://rdap.example.dn42/rdap/"
+    );
 }

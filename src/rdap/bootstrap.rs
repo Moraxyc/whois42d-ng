@@ -4,6 +4,7 @@ use std::time::{SystemTime, UNIX_EPOCH};
 use ipnet::IpNet;
 use serde::Serialize;
 
+use crate::rdap::url::absolute_rdap_base_url;
 use crate::registry::Registry;
 
 /// IANA-format RDAP bootstrap registry file (RFC 7484 / RFC 9224).
@@ -44,7 +45,8 @@ pub fn build(
     base_url: Option<&str>,
     path: &str,
 ) -> io::Result<BootstrapFile> {
-    let url = service_base_url(base_url, path);
+    let url = format!("{}/", absolute_rdap_base_url(base_url, path)?);
+    let publication = rfc3339_utc(registry.data_modified_time()?);
     let entries = match kind {
         Kind::Asn => autnum_entries(registry)?,
         Kind::Dns => dns_entries(registry)?,
@@ -53,7 +55,7 @@ pub fn build(
     };
     Ok(BootstrapFile {
         version: "1.0".to_string(),
-        publication: rfc3339_utc(SystemTime::now()),
+        publication,
         services: vec![(entries, vec![url])],
     })
 }
@@ -66,6 +68,7 @@ fn autnum_entries(registry: &Registry) -> io::Result<Vec<String>> {
             let rest = name
                 .strip_prefix("AS")
                 .or_else(|| name.strip_prefix("as"))?;
+            // IANA bootstrap data uses bare single-ASN entries in practice.
             (!rest.is_empty() && rest.chars().all(|c| c.is_ascii_digit())).then(|| rest.to_string())
         })
         .collect();
@@ -78,7 +81,7 @@ fn dns_entries(registry: &Registry) -> io::Result<Vec<String>> {
     let mut entries: Vec<String> = registry
         .list_object_names("dns")?
         .into_iter()
-        .filter_map(|name| name.split('.').next_back().map(str::to_string))
+        .filter_map(|name| name.split('.').next_back().map(str::to_ascii_lowercase))
         .filter(|tld| !tld.is_empty())
         .collect();
     entries.sort();
@@ -91,29 +94,20 @@ fn ip_entries(registry: &Registry, types: &[&str], ipv6: bool) -> io::Result<Vec
     for object_type in types {
         for name in registry.list_object_names(object_type)? {
             let cidr = name.replace('_', "/");
-            let matches = match cidr.parse::<IpNet>() {
-                Ok(IpNet::V4(_)) => !ipv6,
-                Ok(IpNet::V6(_)) => ipv6,
-                Err(_) => false,
-            };
-            if matches {
-                entries.push(cidr);
+            match cidr.parse::<IpNet>() {
+                Ok(IpNet::V4(net)) if !ipv6 => {
+                    entries.push(format!("{}/{}", net.network(), net.prefix_len()));
+                }
+                Ok(IpNet::V6(net)) if ipv6 => {
+                    entries.push(format!("{}/{}", net.network(), net.prefix_len()));
+                }
+                _ => {}
             }
         }
     }
     entries.sort();
     entries.dedup();
     Ok(entries)
-}
-
-fn service_base_url(base_url: Option<&str>, path: &str) -> String {
-    let base = base_url.unwrap_or("").trim_end_matches('/');
-    let prefix = if path == "/" {
-        ""
-    } else {
-        path.trim_end_matches('/')
-    };
-    format!("{base}{prefix}/")
 }
 
 fn rfc3339_utc(now: SystemTime) -> String {

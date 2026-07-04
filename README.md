@@ -30,7 +30,7 @@ The daemon serves the WHOIS protocol on TCP port 43 by default. See
 | `--rdap-address` | `""` (loopback) | RDAP HTTP bind address. |
 | `--rdap-port` | `0` | RDAP HTTP port; `0` disables the RDAP listener. |
 | `--rdap-path` | `/rdap` | RDAP URL path prefix. |
-| `--rdap-base-url` | `""` | Base URL for RDAP self-links (e.g. `https://rdap.example.dn42`). |
+| `--rdap-base-url` | `""` | Public RDAP base URL for self-links (e.g. `https://rdap.example.dn42` or `https://rdap.example.dn42/rdap`). Required for bootstrap files. |
 
 ### Shell completions
 
@@ -111,16 +111,18 @@ IANA-format RDAP bootstrap registry files (RFC 7484) are published under
 authoritative source for the registry's resources. Each file lists the
 autonomous system numbers (`asn.json`), top-level domains (`dns.json`), IPv4
 prefixes (`ipv4.json`), or IPv6 prefixes (`ipv6.json`) found in the registry,
-all pointing at the configured `--rdap-base-url`:
+all pointing at the absolute public RDAP base URL configured with
+`--rdap-base-url`:
 
     $ curl http://localhost:1080/rdap/bootstrap/asn.json
     $ curl http://localhost:1080/rdap/bootstrap/dns.json
     $ curl http://localhost:1080/rdap/bootstrap/ipv4.json
     $ curl http://localhost:1080/rdap/bootstrap/ipv6.json
 
-Responses use `application/rdap+json` and are CORS-enabled
-(`Access-Control-Allow-Origin: *`). A liveness probe is exposed at a stable
-path outside the RDAP prefix:
+RDAP object and error responses use `application/rdap+json`. Bootstrap files
+use `application/json`. HTTP responses are CORS-enabled
+(`Access-Control-Allow-Origin: *`). A liveness probe is exposed at a stable path
+outside the RDAP prefix:
 
     $ curl http://localhost:1080/healthz
     ok

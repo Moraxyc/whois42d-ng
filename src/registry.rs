@@ -3,6 +3,7 @@ use std::fs;
 use std::io;
 use std::net::IpAddr;
 use std::path::{Component, Path, PathBuf};
+use std::time::SystemTime;
 
 use crate::cidr::RegistryCidr;
 use crate::response;
@@ -99,7 +100,8 @@ impl Registry {
         match fs::read_dir(self.data_path.join(object_type)) {
             Ok(entries) => {
                 let mut names = Vec::new();
-                for entry in entries.flatten() {
+                for entry in entries {
+                    let entry = entry?;
                     if let Some(name) = entry.file_name().to_str() {
                         names.push(name.to_string());
                     }
@@ -110,6 +112,10 @@ impl Registry {
             Err(err) if err.kind() == io::ErrorKind::NotFound => Ok(Vec::new()),
             Err(err) => Err(err),
         }
+    }
+
+    pub fn data_modified_time(&self) -> io::Result<SystemTime> {
+        newest_modified_time(&self.data_path)
     }
 
     pub fn lookup_ip(&self, addr: IpAddr) -> io::Result<Vec<ObjectRef>> {
@@ -238,6 +244,23 @@ impl Registry {
             Ok(false)
         }
     }
+}
+
+fn newest_modified_time(path: &Path) -> io::Result<SystemTime> {
+    let metadata = fs::symlink_metadata(path)?;
+    let mut newest = metadata.modified()?;
+
+    if metadata.is_dir() {
+        for entry in fs::read_dir(path)? {
+            let entry = entry?;
+            let modified = newest_modified_time(&entry.path())?;
+            if modified > newest {
+                newest = modified;
+            }
+        }
+    }
+
+    Ok(newest)
 }
 
 fn render_object(output: &mut String, object: &ObjectRef) {

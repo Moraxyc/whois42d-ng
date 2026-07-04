@@ -1,6 +1,7 @@
 use ipnet::IpNet;
 
 use crate::rdap::model::{EntityRef, Link, RdapObject, Remark};
+use crate::rdap::url::rdap_base_url;
 use crate::registry::ObjectRef;
 
 pub fn autnum(object: &ObjectRef, base_url: Option<&str>, path: &str, query: &str) -> RdapObject {
@@ -142,14 +143,6 @@ fn base_object(
     }
 }
 
-fn link_path(path: &str) -> &str {
-    if path == "/" {
-        ""
-    } else {
-        path.trim_end_matches('/')
-    }
-}
-
 fn network_range(name: &str) -> Option<(String, String, String)> {
     match name.replace('_', "/").parse::<IpNet>().ok()? {
         IpNet::V4(net) => Some((
@@ -194,13 +187,13 @@ fn self_link(
     value_path: &str,
     href_path: &str,
 ) -> Link {
-    let base_url = base_url.unwrap_or_default().trim_end_matches('/');
+    let base_url = rdap_base_url(base_url, path);
     let value_path = value_path.trim_start_matches('/');
     let href_path = href_path.trim_start_matches('/');
     Link {
-        value: format!("{}{}/{route}/{value_path}", base_url, link_path(path)),
+        value: format!("{base_url}/{route}/{value_path}"),
         rel: "self".to_string(),
-        href: format!("{}{}/{route}/{href_path}", base_url, link_path(path)),
+        href: format!("{base_url}/{route}/{href_path}"),
         media_type: "application/rdap+json".to_string(),
     }
 }

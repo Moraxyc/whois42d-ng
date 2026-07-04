@@ -60,7 +60,7 @@ pub struct Options {
     /// RDAP HTTP listen port. 0 disables the explicit RDAP TCP listener.
     #[arg(long, default_value_t = 0)]
     pub rdap_port: u16,
-    /// Base URL for RDAP self links, for example https://rdap.example.dn42.
+    /// Public RDAP base URL for self links and bootstrap files.
     #[arg(long, default_value = "")]
     pub rdap_base_url: String,
     /// RDAP HTTP path prefix.
