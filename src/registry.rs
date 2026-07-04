@@ -95,6 +95,23 @@ impl Registry {
         }
     }
 
+    pub fn list_object_names(&self, object_type: &str) -> io::Result<Vec<String>> {
+        match fs::read_dir(self.data_path.join(object_type)) {
+            Ok(entries) => {
+                let mut names = Vec::new();
+                for entry in entries.flatten() {
+                    if let Some(name) = entry.file_name().to_str() {
+                        names.push(name.to_string());
+                    }
+                }
+                names.sort();
+                Ok(names)
+            }
+            Err(err) if err.kind() == io::ErrorKind::NotFound => Ok(Vec::new()),
+            Err(err) => Err(err),
+        }
+    }
+
     pub fn lookup_ip(&self, addr: IpAddr) -> io::Result<Vec<ObjectRef>> {
         let route_types = match addr {
             IpAddr::V4(_) => ["inetnum", "route"],

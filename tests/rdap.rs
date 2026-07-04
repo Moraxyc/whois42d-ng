@@ -330,3 +330,91 @@ async fn healthz_works_with_root_rdap_path() {
         .expect("request should run");
     assert_eq!(response.status(), StatusCode::OK);
 }
+
+#[tokio::test]
+async fn bootstrap_asn_file_lists_autnum_numbers() {
+    let (status, content_type, _, json) = get("/rdap/bootstrap/asn.json").await;
+
+    assert_eq!(status, StatusCode::OK);
+    assert_eq!(content_type, "application/rdap+json");
+    assert_eq!(json["version"], "1.0");
+    assert_eq!(json["services"][0][1][0], "https://rdap.example.dn42/rdap/");
+    let entries = json["services"][0][0]
+        .as_array()
+        .expect("entries should be an array");
+    assert!(entries.iter().any(|entry| entry == "4242423011"));
+    assert!(
+        entries
+            .iter()
+            .all(|entry| !entry.as_str().expect("entry is string").starts_with("AS"))
+    );
+}
+
+#[tokio::test]
+async fn bootstrap_dns_file_lists_top_level_domains() {
+    let (status, _, _, json) = get("/rdap/bootstrap/dns.json").await;
+
+    assert_eq!(status, StatusCode::OK);
+    let entries = json["services"][0][0]
+        .as_array()
+        .expect("entries should be an array");
+    assert!(entries.iter().any(|entry| entry == "dn42"));
+}
+
+#[tokio::test]
+async fn bootstrap_ipv4_and_ipv6_files_list_registry_prefixes() {
+    let (v4_status, _, _, v4_json) = get("/rdap/bootstrap/ipv4.json").await;
+    let (v6_status, _, _, v6_json) = get("/rdap/bootstrap/ipv6.json").await;
+
+    assert_eq!(v4_status, StatusCode::OK);
+    let v4_entries = v4_json["services"][0][0]
+        .as_array()
+        .expect("v4 entries should be an array");
+    assert!(v4_entries.iter().any(|entry| entry == "172.21.86.192/27"));
+    assert!(
+        v4_entries
+            .iter()
+            .all(|entry| !entry.as_str().expect("entry is string").contains(':'))
+    );
+
+    assert_eq!(v6_status, StatusCode::OK);
+    let v6_entries = v6_json["services"][0][0]
+        .as_array()
+        .expect("v6 entries should be an array");
+    assert!(
+        v6_entries
+            .iter()
+            .any(|entry| entry == "fdea:a10b:3d3a::/48")
+    );
+}
+
+#[tokio::test]
+async fn bootstrap_unknown_file_returns_rdap_error() {
+    let (status, content_type, _, json) = get("/rdap/bootstrap/garbage.json").await;
+
+    assert_eq!(status, StatusCode::NOT_FOUND);
+    assert_eq!(content_type, "application/rdap+json");
+    assert_eq!(json["errorCode"], 404);
+}
+
+#[tokio::test]
+async fn bootstrap_uses_root_path_and_absolute_base_url() {
+    let app = app_with_path("/");
+    let (status, _, _, json) = get_from(app, "/bootstrap/dns.json").await;
+
+    assert_eq!(status, StatusCode::OK);
+    assert_eq!(json["services"][0][1][0], "https://rdap.example.dn42/");
+}
+
+#[tokio::test]
+async fn bootstrap_without_base_url_emits_relative_service_url() {
+    let app = routes(RdapState {
+        registry: Registry::new(PathBuf::from("resources/fixtures/registry-3011/data")),
+        base_url: None,
+        path: "/rdap".to_string(),
+    });
+    let (status, _, _, json) = get_from(app, "/rdap/bootstrap/asn.json").await;
+
+    assert_eq!(status, StatusCode::OK);
+    assert_eq!(json["services"][0][1][0], "/rdap/");
+}

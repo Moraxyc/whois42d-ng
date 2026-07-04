@@ -1,10 +1,10 @@
-# whois42d
+# whois42d-ng
 
 [![Nix Flake Check](https://github.com/Moraxyc/whois42d-ng/actions/workflows/nix-flake-check.yml/badge.svg)](https://github.com/Moraxyc/whois42d-ng/actions/workflows/nix-flake-check.yml)
 
-Whois server for the dn42 registry.
+WHOIS server for the dn42 registry, written in Rust.
 
-Based original on whoisd from the dn42 monotone registry written by welterde.
+Originally based on `whoisd` from the dn42 monotone registry by welterde.
 
 ## Installation
 
@@ -14,29 +14,53 @@ Build with Cargo:
 
 ## Usage
 
-    root> target/release/whois42d-ng --registry /path/to/registry
+    $ target/release/whois42d-ng --registry /path/to/registry
+
+The daemon serves the WHOIS protocol on TCP port 43 by default. See
+[Options](#options) for binding, RDAP, and socket-activation behavior.
+
+## Options
+
+| Option | Default | Description |
+| --- | --- | --- |
+| `--address` | `""` (loopback) | Bind address. Use `0.0.0.0` or `::` for all interfaces. |
+| `--port` | `43` | WHOIS TCP port. |
+| `--registry` | `.` | Path to the registry root (its `data/` directory is served). |
+| `--timeout` | `10` | Seconds a socket-activated instance stays idle before exiting. |
+| `--rdap-address` | `""` (loopback) | RDAP HTTP bind address. |
+| `--rdap-port` | `0` | RDAP HTTP port; `0` disables the RDAP listener. |
+| `--rdap-path` | `/rdap` | RDAP URL path prefix. |
+| `--rdap-base-url` | `""` | Base URL for RDAP self-links (e.g. `https://rdap.example.dn42`). |
+
+### Shell completions
+
+Generate completion scripts for your shell:
+
+    $ whois42d-ng completions bash > whois42d-ng.bash
 
 ## Run without root
 
-By default root privileges are required to run whois42d to be able to bind port 43.
-However you can use one of the following options to run whois42d without beeing root.
+Binding port 43 normally requires root. Use one of the following to run
+whois42d-ng unprivileged.
 
-1. Use setcap on file:
+1. Grant the capability on the binary:
 
-        $ setcap 'cap_net_bind_service=+ep' ./whois42d
+        $ setcap 'cap_net_bind_service=+ep' ./whois42d-ng
 
-2. Use a supervisor supporting socket activation, for example systemd:
+2. Use a supervisor with socket activation, for example systemd:
 
         $ cp whois42d-ng.service whois42d-ng.socket /etc/systemd/system
         $ install -D -m755 target/release/whois42d-ng /usr/local/bin/whois42d-ng
 
-Edit whois42d-ng.service to point to your registry path, then enable it with
+Edit `whois42d-ng.service` to point `--registry` at your registry path, then
+enable the socket:
 
-    $ systemctl enable whois42d-ng.socket
-    $ systemctl start whois42d-ng.socket
+    $ systemctl enable --now whois42d-ng.socket
 
-**NOTE**: Do not start whois42d-ng.service directly (`systemctl start whois42d-ng`),
-it run as user nobody, who cannot bind to port 43 itself.
+**NOTE**: Start the socket, not the service. Under socket activation systemd
+creates the listening socket and hands it to the service; starting
+`whois42d-ng.service` directly makes it bind the port itself, which the
+hardened unit is not designed for.
 
 ## Supported Queries
 
@@ -51,26 +75,27 @@ it run as user nobody, who cannot bind to port 43 itself.
 - schema: `$ whois -h <server> PERSON-SCHEMA`
 - organisation: `$ whois -h <server> ORG-C3D2`
 - tinc-keyset: `$ whois -h <server> SET-1-DN42-TINC`
-- tinc-key: `$ whois -h <server> AS4242422703`
+- tinc-key: `$ whois -h <server> <node>-TINC`
 - key-cert: `$ whois -h <server> PGPKEY-12345678`
-- as-set: `$ whois -h <server> 4242420000_4242423999`
-- as-block: `$ whois -h <server> AS-FREIFUNK`
+- as-set: `$ whois -h <server> AS-FREIFUNK`
+- as-block: `$ whois -h <server> 4242420000_4242423999`
 - route-set: `$ whois -h <server> RS-DN42-NATIVE`
+- telephony: `$ whois -h <server> +04243011`
 - version: `$ whois -h <server> -q version`
 - sources: `$ whois -h <server> -q sources`
 - types: `$ whois -h <server> -q types`
-- type filtering: `$ whois -h 172.23.75.6 -T aut-num,person Mic92-DN42 AS4242420092`
-
-The daemon accepts `--address`, `--port`, `--registry`, and `--timeout`.
-`--timeout` controls how long a socket-activated instance waits idle before exiting.
+- type filtering: `$ whois -h <server> -T aut-num,person Mic92-DN42 AS4242420092`
 
 Template queries using `-t` return an unsupported response.
+
+IP and CIDR queries return all matching `inetnum`/`route` (IPv4) or
+`inet6num`/`route6` (IPv6) objects, most specific first.
 
 ## RDAP HTTP Interface
 
 The daemon can additionally serve an RDAP-over-HTTP interface. Enable it with
-`--rdap-port` and optionally customize the listen address, path prefix, and
-self-link base URL:
+`--rdap-port` and, optionally, `--rdap-address`, `--rdap-path`, and
+`--rdap-base-url`:
 
     $ whois42d-ng --registry /path/to/registry --rdap-port 1080
 
@@ -81,7 +106,21 @@ Supported lookups under the configured `--rdap-path` (default `/rdap`):
 - domain: `GET /rdap/domain/moraxyc.dn42`
 - entity: `GET /rdap/entity/MORAXYC-DN42`
 
-A liveness probe is exposed at a stable path outside the RDAP prefix:
+IANA-format RDAP bootstrap registry files (RFC 7484) are published under
+`<rdap-path>/bootstrap/` so RDAP clients can discover this server as the
+authoritative source for the registry's resources. Each file lists the
+autonomous system numbers (`asn.json`), top-level domains (`dns.json`), IPv4
+prefixes (`ipv4.json`), or IPv6 prefixes (`ipv6.json`) found in the registry,
+all pointing at the configured `--rdap-base-url`:
+
+    $ curl http://localhost:1080/rdap/bootstrap/asn.json
+    $ curl http://localhost:1080/rdap/bootstrap/dns.json
+    $ curl http://localhost:1080/rdap/bootstrap/ipv4.json
+    $ curl http://localhost:1080/rdap/bootstrap/ipv6.json
+
+Responses use `application/rdap+json` and are CORS-enabled
+(`Access-Control-Allow-Origin: *`). A liveness probe is exposed at a stable
+path outside the RDAP prefix:
 
     $ curl http://localhost:1080/healthz
     ok
@@ -99,3 +138,5 @@ Run it with a local registry checkout mounted at `/registry`:
 ```
 $ docker run -v path/to/registry:/registry -p 43:4343 --rm whois42d-ng
 ```
+
+The image listens on port `4343`; map it to the host port you want to expose.

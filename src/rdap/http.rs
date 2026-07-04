@@ -6,6 +6,7 @@ use axum::response::{IntoResponse, Response};
 use axum::{Json, Router, routing::get};
 use ipnet::IpNet;
 
+use crate::rdap::bootstrap;
 use crate::rdap::mapper;
 use crate::rdap::model::RdapError;
 use crate::registry::Registry;
@@ -25,6 +26,7 @@ pub fn routes(state: RdapState) -> Router {
         .route("/ip/{addr}/{prefix}", get(handle_ip_prefix))
         .route("/domain/{name}", get(handle_domain))
         .route("/entity/{handle}", get(handle_entity))
+        .route("/bootstrap/{file}", get(handle_bootstrap))
         .fallback(handle_not_found)
         .with_state(state);
     if path == "/" {
@@ -169,6 +171,30 @@ async fn handle_ip_prefix(
         mapper::ip_network(&[object], state.base_url.as_deref(), &state.path, &query)
             .expect("one object"),
     )
+}
+
+async fn handle_bootstrap(State(state): State<RdapState>, Path(file): Path<String>) -> Response {
+    let Some(kind) = bootstrap::Kind::from_file(&file) else {
+        return error(StatusCode::NOT_FOUND, "unknown bootstrap file");
+    };
+    let registry = state.registry.clone();
+    let base_url = state.base_url.clone();
+    let path = state.path.clone();
+    let result = tokio::task::spawn_blocking(move || {
+        bootstrap::build(&registry, kind, base_url.as_deref(), &path)
+    })
+    .await;
+    match result {
+        Ok(Ok(body)) => rdap_json(StatusCode::OK, body),
+        Ok(Err(err)) => {
+            log::warn!("rdap bootstrap build failed: {err}");
+            error(StatusCode::INTERNAL_SERVER_ERROR, "bootstrap build failed")
+        }
+        Err(err) => {
+            log::warn!("rdap bootstrap task failed: {err}");
+            error(StatusCode::INTERNAL_SERVER_ERROR, "bootstrap build failed")
+        }
+    }
 }
 
 async fn handle_not_found() -> Response {
