@@ -206,13 +206,9 @@ pub async fn serve_one_async(
 
 pub fn serve_listener(listener: TcpListener, registry: Registry) -> io::Result<()> {
     for stream in listener.incoming() {
-        match stream {
-            Ok(stream) => {
-                if let Err(err) = serve_one(stream, &registry) {
-                    log::warn!("connection failed: {err}");
-                }
-            }
-            Err(err) => return Err(err),
+        let stream = stream?;
+        if let Err(err) = serve_one(stream, &registry) {
+            log::warn!("connection failed: {err}");
         }
     }
     Ok(())
