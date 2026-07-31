@@ -1,17 +1,6 @@
 {
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
   "extends": [
-    "config:recommended"
-  ],
-  "dependencyDashboard": true,
-  "automerge": true,
-  "nix": {
-    "enabled": true
-  },
-  "lockFileMaintenance": {
-    "enabled": true,
-    "schedule": [
-      "before 6am on monday"
-    ]
-  }
+    "github>Moraxyc/renovate-config"
+  ]
 }
