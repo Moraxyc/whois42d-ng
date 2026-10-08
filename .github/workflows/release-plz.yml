@@ -5,9 +5,7 @@ on:
         branches: [master]
 
 permissions:
-    contents: write
-    pull-requests: write
-    actions: write
+    contents: read
 
 jobs:
     release-plz:
@@ -17,6 +15,7 @@ jobs:
               uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
               with:
                   fetch-depth: 0
+                  persist-credentials: false
 
             - name: Install Nix
               uses: cachix/install-nix-action@13d8dd58da0234aa297dedd986986ccb8e7f3e24 # v31
@@ -26,12 +25,21 @@ jobs:
                   sudo apt-get update
                   sudo apt-get install -y pkg-config libsystemd-dev
 
+            - name: Generate GitHub App Token
+              id: app-token
+              uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3
+              with:
+                  client-id: ${{ secrets.APP_ID }}
+                  private-key: ${{ secrets.APP_PRIVATE_KEY }}
+                  permission-contents: write
+                  permission-pull-requests: write
+
             - name: Run release-plz (create tag)
               id: release
               run: |
                   git tag | sort > /tmp/tags-before.txt
                   nix shell nixpkgs#release-plz -c \
-                    release-plz release --git-token $GITHUB_TOKEN
+                    release-plz release --git-token "$GITHUB_TOKEN"
                   git fetch --tags origin
                   NEW_TAG="$(comm -13 /tmp/tags-before.txt <(git tag | sort))"
                   if [ -z "$NEW_TAG" ]; then
@@ -39,14 +47,13 @@ jobs:
                     exit 0
                   fi
                   echo "released=true" >> "$GITHUB_OUTPUT"
-                  gh workflow run release.yml -f tag="$NEW_TAG"
               env:
-                  GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+                  GITHUB_TOKEN: ${{ steps.app-token.outputs.token }}
 
             - name: Run release-plz (create/update PR)
               if: steps.release.outputs.released != 'true'
               run: |
                   nix shell nixpkgs#release-plz -c \
-                    release-plz release-pr --git-token $GITHUB_TOKEN --forge github
+                    release-plz release-pr --git-token "$GITHUB_TOKEN" --forge github
               env:
-                  GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+                  GITHUB_TOKEN: ${{ steps.app-token.outputs.token }}
