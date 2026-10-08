@@ -277,7 +277,7 @@ fn render_object(output: &mut String, object: &ObjectRef) {
 
 impl Query {
     pub fn parse(input: &str) -> Result<Self, String> {
-        let mut args = split_args(input);
+        let mut args = input.split_whitespace().peekable();
         let mut query = Query {
             server_info: None,
             type_filter: Vec::new(),
@@ -285,18 +285,17 @@ impl Query {
             objects: Vec::new(),
         };
 
-        while let Some(arg) = args.first().cloned() {
+        while let Some(arg) = args.peek().copied() {
             if !arg.starts_with('-') {
                 break;
             }
-            args.remove(0);
-            let Some(value) = args.first().cloned() else {
+            args.next();
+            let Some(value) = args.next() else {
                 return Err(format!("missing value for {arg}"));
             };
-            args.remove(0);
 
-            match arg.as_str() {
-                "-q" => query.server_info = Some(value),
+            match arg {
+                "-q" => query.server_info = Some(value.to_string()),
                 "-T" => {
                     query.type_filter = value
                         .split(',')
@@ -304,18 +303,14 @@ impl Query {
                         .map(str::to_string)
                         .collect();
                 }
-                "-t" => query.type_schema = Some(value),
+                "-t" => query.type_schema = Some(value.to_string()),
                 _ => return Err(format!("unsupported option {arg}")),
             }
         }
 
-        query.objects = args;
+        query.objects = args.map(str::to_string).collect();
         Ok(query)
     }
-}
-
-fn split_args(input: &str) -> Vec<String> {
-    input.split_whitespace().map(str::to_string).collect()
 }
 
 fn type_allowed(type_filter: &[String], object_type: &str) -> bool {

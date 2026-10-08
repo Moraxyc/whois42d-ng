@@ -47,7 +47,7 @@ async fn handle_autnum(State(state): State<RdapState>, Path(asn): Path<String>) 
     let registry = state.registry.clone();
     let result =
         tokio::task::spawn_blocking(move || registry.lookup_object("aut-num", &name)).await;
-    let object = match lookup_one(result) {
+    let object = match lookup_result(result) {
         Ok(Some(object)) => object,
         Ok(None) => return error(StatusCode::NOT_FOUND, "object not found"),
         Err(err) => {
@@ -70,7 +70,7 @@ async fn handle_domain(State(state): State<RdapState>, Path(name): Path<String>)
     let lookup_name = name.clone();
     let result =
         tokio::task::spawn_blocking(move || registry.lookup_object("dns", &lookup_name)).await;
-    let object = match lookup_one(result) {
+    let object = match lookup_result(result) {
         Ok(Some(object)) => object,
         Ok(None) => return error(StatusCode::NOT_FOUND, "object not found"),
         Err(err) => {
@@ -99,7 +99,7 @@ async fn handle_entity(State(state): State<RdapState>, Path(handle): Path<String
         }
     })
     .await;
-    let object = match lookup_one(result) {
+    let object = match lookup_result(result) {
         Ok(Some(object)) => object,
         Ok(None) => return error(StatusCode::NOT_FOUND, "object not found"),
         Err(err) => {
@@ -119,7 +119,7 @@ async fn handle_ip(State(state): State<RdapState>, Path(addr): Path<String>) -> 
     };
     let registry = state.registry.clone();
     let result = tokio::task::spawn_blocking(move || registry.lookup_ip(addr_value)).await;
-    let objects = match lookup_many(result) {
+    let objects = match lookup_result(result) {
         Ok(objects) if !objects.is_empty() => objects,
         Ok(_) => return error(StatusCode::NOT_FOUND, "object not found"),
         Err(err) => {
@@ -153,11 +153,10 @@ async fn handle_ip_prefix(
     };
     let object_name = format!("{}_{}", network.network(), network.prefix_len());
     let registry = state.registry.clone();
-    let lookup_name = object_name.clone();
     let result =
-        tokio::task::spawn_blocking(move || registry.lookup_object(object_type, &lookup_name))
+        tokio::task::spawn_blocking(move || registry.lookup_object(object_type, &object_name))
             .await;
-    let object = match lookup_one(result) {
+    let object = match lookup_result(result) {
         Ok(Some(object)) => object,
         Ok(None) => return error(StatusCode::NOT_FOUND, "object not found"),
         Err(err) => {
@@ -224,15 +223,9 @@ fn autnum_name(value: &str) -> Option<String> {
         .then(|| format!("AS{digits}"))
 }
 
-fn lookup_one<T>(
-    result: Result<std::io::Result<Option<T>>, tokio::task::JoinError>,
-) -> std::io::Result<Option<T>> {
-    result.map_err(std::io::Error::other)?
-}
-
-fn lookup_many<T>(
-    result: Result<std::io::Result<Vec<T>>, tokio::task::JoinError>,
-) -> std::io::Result<Vec<T>> {
+fn lookup_result<T>(
+    result: Result<std::io::Result<T>, tokio::task::JoinError>,
+) -> std::io::Result<T> {
     result.map_err(std::io::Error::other)?
 }
 

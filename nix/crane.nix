@@ -39,13 +39,8 @@
       whois42d-ng = craneLib.buildPackage (
         commonArgs
         // {
-          cargoArtifacts = craneLib.buildDepsOnly commonArgs;
-          nativeBuildInputs =
-            with pkgs;
-            (commonArgs.nativeBuildInputs or [ ])
-            ++ [
-              installShellFiles
-            ];
+          inherit cargoArtifacts;
+          nativeBuildInputs = commonArgs.nativeBuildInputs ++ [ pkgs.installShellFiles ];
           postInstall =
             lib.optionalString enableSystemd ''
               substituteInPlace resources/whois42d-ng.service \

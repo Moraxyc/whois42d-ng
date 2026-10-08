@@ -99,18 +99,36 @@ fn renders_existing_telephony_object() {
 }
 
 #[test]
-fn refuses_path_traversal_queries() {
-    let outside = PathBuf::from("resources/fixtures/registry-3011/secret");
-    fs::write(&outside, "secret").expect("test secret should be writable");
+fn refuses_path_traversal_in_whois_and_structured_lookups() {
+    let data_path = temp_registry_path("registry-traversal");
+    fs::create_dir_all(data_path.join("mntner")).expect("mntner directory should be created");
+    let outside = data_path.join("OUTSIDE-MNT");
+    fs::write(&outside, "mntner: OUTSIDE-MNT\n").expect("outside object should be created");
+    let registry = Registry::new(data_path.clone());
 
-    let response = fixture_registry()
-        .handle_query("../secret")
+    let response = registry
+        .handle_query("../OUTSIDE-MNT")
         .expect("query should render");
 
     assert!(response.contains("% 404"));
-    assert!(!response.contains("secret"));
+    assert!(!response.contains("mntner: OUTSIDE-MNT"));
 
-    fs::remove_file(outside).expect("test secret should be removed");
+    for (object_type, object_name) in [
+        ("mntner", "../OUTSIDE-MNT"),
+        (".", "OUTSIDE-MNT"),
+        (data_path.to_str().unwrap(), "OUTSIDE-MNT"),
+        ("mntner", outside.to_str().unwrap()),
+    ] {
+        assert!(
+            registry
+                .lookup_object(object_type, object_name)
+                .expect("lookup should not fail")
+                .is_none(),
+            "{object_type}/{object_name}"
+        );
+    }
+
+    fs::remove_dir_all(data_path).expect("temporary registry should be removed");
 }
 
 #[test]
@@ -124,15 +142,6 @@ fn looks_up_structured_object() {
     assert_eq!(object.object_name, "AS4242423011");
     assert!(object.raw_text.contains("aut-num:            AS4242423011"));
     assert_eq!(object.rpsl.get("as-name"), Some("MORAXYC-AS"));
-}
-
-#[test]
-fn structured_lookup_refuses_path_traversal() {
-    let object = fixture_registry()
-        .lookup_object("aut-num", "../secret")
-        .expect("lookup should not fail");
-
-    assert!(object.is_none());
 }
 
 #[test]
@@ -152,11 +161,34 @@ fn structured_lookup_returns_read_errors() {
 
 #[test]
 fn looks_up_ip_objects_by_longest_prefix_first() {
-    let objects = fixture_registry()
+    let data_path = temp_registry_path("registry-prefix-order");
+    for (object_type, name, content) in [
+        ("inetnum", "172.21.86.0_24", "inetnum: 172.21.86.0/24\n"),
+        ("route", "172.21.86.192_27", "route: 172.21.86.192/27\n"),
+        ("route", "172.21.86.192_28", "route: 172.21.86.192/28\n"),
+        ("route", "172.21.86.224_28", "route: 172.21.86.224/28\n"),
+    ] {
+        fs::create_dir_all(data_path.join(object_type))
+            .expect("object directory should be created");
+        fs::write(data_path.join(object_type).join(name), content)
+            .expect("network object should be created");
+    }
+
+    let objects = Registry::new(data_path.clone())
         .lookup_ip(IpAddr::V4(Ipv4Addr::new(172, 21, 86, 193)))
         .expect("lookup should not fail");
+    fs::remove_dir_all(data_path).expect("temporary registry should be removed");
 
-    assert_eq!(objects[0].object_type, "route");
-    assert_eq!(objects[0].object_name, "172.21.86.192_27");
-    assert_eq!(objects[0].rpsl.get("route"), Some("172.21.86.192/27"));
+    assert_eq!(
+        objects
+            .iter()
+            .map(|object| (object.object_type.as_str(), object.object_name.as_str()))
+            .collect::<Vec<_>>(),
+        vec![
+            ("route", "172.21.86.192_28"),
+            ("route", "172.21.86.192_27"),
+            ("inetnum", "172.21.86.0_24"),
+        ]
+    );
+    assert_eq!(objects[0].rpsl.get("route"), Some("172.21.86.192/28"));
 }

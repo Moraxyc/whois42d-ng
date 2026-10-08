@@ -49,7 +49,7 @@ whois42d-ng unprivileged.
 
 2. Use a supervisor with socket activation, for example systemd:
 
-        $ cp whois42d-ng.service whois42d-ng.socket /etc/systemd/system
+        $ cp resources/whois42d-ng.service resources/whois42d-ng.socket /etc/systemd/system
         $ install -D -m755 target/release/whois42d-ng /usr/local/bin/whois42d-ng
 
 Edit `whois42d-ng.service` to point `--registry` at your registry path, then

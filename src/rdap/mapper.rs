@@ -41,7 +41,7 @@ pub fn domain(object: &ObjectRef, base_url: Option<&str>, path: &str, query: &st
         query,
         &handle,
     );
-    response.ldh_name = Some(handle.clone());
+    response.ldh_name = Some(handle);
     response.entities = entity_refs(object, base_url, path);
     response.remarks = remarks(object, &["domain", "admin-c", "tech-c", "zone-c", "source"]);
     response
@@ -118,8 +118,6 @@ fn base_object(
     value_path: &str,
     href_path: &str,
 ) -> RdapObject {
-    let value_path = value_path.trim_start_matches('/');
-    let href_path = href_path.trim_start_matches('/');
     RdapObject {
         rdap_conformance: vec!["rdap_level_0".to_string()],
         object_class_name: class_name.to_string(),

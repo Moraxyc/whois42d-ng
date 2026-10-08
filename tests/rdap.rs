@@ -248,18 +248,22 @@ async fn lookup_io_error_returns_rdap_500() {
     let data_path = temp_registry_path("rdap-lookup-error");
     fs::create_dir_all(data_path.join("aut-num").join("AS4242423011"))
         .expect("directory object path should be created");
+    fs::create_dir_all(data_path.join("route").join("172.21.86.192_27"))
+        .expect("directory route path should be created");
     let app = routes(RdapState {
         registry: Registry::new(data_path.clone()),
         base_url: Some("https://rdap.example.dn42".to_string()),
         path: "/rdap".to_string(),
     });
 
-    let (status, content_type, _, json) = get_from(app, "/rdap/autnum/4242423011").await;
-    let _ = fs::remove_dir_all(data_path);
+    for path in ["/rdap/autnum/4242423011", "/rdap/ip/172.21.86.193"] {
+        let (status, content_type, _, json) = get_from(app.clone(), path).await;
 
-    assert_eq!(status, StatusCode::INTERNAL_SERVER_ERROR);
-    assert_eq!(content_type, "application/rdap+json");
-    assert_eq!(json["errorCode"], 500);
+        assert_eq!(status, StatusCode::INTERNAL_SERVER_ERROR, "{path}");
+        assert_eq!(content_type, "application/rdap+json", "{path}");
+        assert_eq!(json["errorCode"], 500, "{path}");
+    }
+    fs::remove_dir_all(data_path).expect("temporary registry should be removed");
 }
 
 #[tokio::test]
