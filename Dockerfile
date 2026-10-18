@@ -1,4 +1,4 @@
-FROM rust:1.99-alpine@sha256:020ae58708330f028718219a3a90ac05c37f2de43de5a4ca212b293324aa52bd AS build
+FROM rust:1.99-alpine@sha256:557a94c82b485a14b569120e00867267108c734efe33f10cc31ca0cd5dd1eca9 AS build
 WORKDIR /build
 RUN apk add --no-cache musl-dev
 RUN rustup target add x86_64-unknown-linux-musl
