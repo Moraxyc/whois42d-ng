@@ -2,6 +2,7 @@
   perSystem =
     {
       config,
+      lib,
       pkgs,
       craneLib,
       ...
@@ -10,14 +11,16 @@
       devShells.default = craneLib.devShell {
         inherit (config.pre-commit.settings) shellHook;
         nativeBuildInputs = config.pre-commit.settings.enabledPackages;
-        packages = with pkgs; [
-          # rust
-          rust-analyzer
-          cargo-nextest
-          cargo-edit
-          pkg-config
-          systemd
-        ];
+        packages =
+          with pkgs;
+          [
+            # rust
+            rust-analyzer
+            cargo-nextest
+            cargo-edit
+            pkg-config
+          ]
+          ++ lib.optionals stdenv.hostPlatform.isLinux [ systemd ];
       };
     };
 }
