@@ -45,7 +45,7 @@ pub fn tcp_listeners_from_env() -> io::Result<Vec<std::net::TcpListener>> {
 
 #[cfg(all(feature = "systemd", unix))]
 pub fn listener_fds_by_name() -> io::Result<HashMap<Option<String>, Vec<RawFd>>> {
-    let fds = systemd::daemon::listen_fds(false).map_err(io::Error::other)?;
+    let fds = systemd::daemon::listen_fds().map_err(io::Error::other)?;
     let names = std::env::var("LISTEN_FDNAMES").unwrap_or_default();
     let mut names = names.split(':');
     let mut grouped: HashMap<Option<String>, Vec<RawFd>> = HashMap::new();
@@ -87,7 +87,7 @@ pub fn split_listener_fds_by_role(
 
 #[cfg(all(feature = "systemd", unix))]
 pub fn notify_ready() -> io::Result<()> {
-    systemd::daemon::notify(false, std::iter::once(&(systemd::daemon::STATE_READY, "1")))
+    systemd::daemon::notify(std::iter::once(&(systemd::daemon::STATE_READY, "1")))
         .map(|_| ())
         .map_err(io::Error::other)
 }
