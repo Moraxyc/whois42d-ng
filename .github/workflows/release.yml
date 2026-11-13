@@ -13,6 +13,10 @@ on:
 permissions:
     contents: read
 
+concurrency:
+    group: release-${{ inputs.tag || github.ref_name }}
+    cancel-in-progress: false
+
 jobs:
     build:
         name: Build ${{ matrix.target }}
@@ -28,7 +32,7 @@ jobs:
                       os: ubuntu-24.04-arm
                       flags: "--no-default-features"
                     - target: x86_64-unknown-linux-gnu
-                      os: ubuntu-latest
+                      os: ubuntu-24.04
                       flags: ""
                     - target: aarch64-unknown-linux-gnu
                       os: ubuntu-24.04-arm
@@ -50,6 +54,7 @@ jobs:
             - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
               with:
                   ref: ${{ inputs.tag || '' }}
+                  persist-credentials: false
 
             - name: Add Rust target
               run: rustup target add ${{ matrix.target }}
@@ -64,14 +69,29 @@ jobs:
 
             - name: Build (Linux)
               if: runner.os == 'Linux'
-              run: cargo build --release --target ${{ matrix.target }} ${{ matrix.flags }}
+              run: cargo build --release --locked --target ${{ matrix.target }} ${{ matrix.flags }}
               env:
                   CARGO_TARGET_RISCV64GC_UNKNOWN_LINUX_GNU_LINKER: riscv64-linux-gnu-gcc
                   CARGO_TARGET_X86_64_PC_WINDOWS_GNU_LINKER: x86_64-w64-mingw32-gcc
 
             - name: Build (macOS)
               if: runner.os == 'macOS'
-              run: cargo build --release --target ${{ matrix.target }} ${{ matrix.flags }}
+              run: cargo build --release --locked --target ${{ matrix.target }} ${{ matrix.flags }}
+
+            - name: Build Debian package
+              if: runner.os == 'Linux' && matrix.flags == ''
+              env:
+                  CARGO_BUILD_TARGET: ${{ matrix.target }}
+              run: |
+                  sudo apt-get install -y debhelper dpkg-dev pkg-config jq
+                  bash scripts/build-deb.sh
+
+            - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
+              if: runner.os == 'Linux' && matrix.flags == ''
+              with:
+                  name: debian-${{ matrix.target }}
+                  path: dist/*.deb
+                  if-no-files-found: error
 
             - name: Package
               env:
@@ -115,10 +135,13 @@ jobs:
         name: Publish GitHub Release
         needs: build
         runs-on: ubuntu-latest
+        env:
+            TAG: ${{ inputs.tag || github.ref_name }}
         steps:
             - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
               with:
                   ref: ${{ inputs.tag || '' }}
+                  persist-credentials: false
 
             - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8
               with:
@@ -126,19 +149,30 @@ jobs:
                   pattern: whois42d-ng-*
                   merge-multiple: true
 
-            - name: Set variables
-              id: vars
+            - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8
+              with:
+                  path: dist
+                  pattern: debian-*
+                  merge-multiple: true
+
+            - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+              with:
+                  repository: Moraxyc/pkgs.moraxyc.com
+                  ref: 2e47ae81a5d23daae3aef0d932a6b913d0097b15
+                  path: .repository-tools
+                  persist-credentials: false
+
+            - uses: cachix/install-nix-action@75c75c31ebece974e48ebc36b4ad125bd97bd97b # v31
+
+            - name: Generate Debian manifest
               run: |
-                  TAG="${{ inputs.tag || github.ref_name }}"
-                  VERSION="${TAG#v}"
-                  echo "tag=$TAG" >> "$GITHUB_OUTPUT"
-                  echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+                  nix build ./.repository-tools#moraxyc-repo --out-link .repository-tools/result
+                  .repository-tools/result/bin/moraxyc-repo manifest --artifacts dist --project whois42d-ng --tag "$TAG"
 
             - name: Extract changelog section
               id: notes
-              env:
-                  VERSION: ${{ steps.vars.outputs.version }}
               run: |
+                  VERSION="${TAG#v}"
                   NOTES_FILE="$(mktemp)"
                   if [ -f CHANGELOG.md ]; then
                     awk -v v="$VERSION" '
@@ -161,10 +195,8 @@ jobs:
             - name: Create release
               env:
                   GH_TOKEN: ${{ steps.app-token.outputs.token }}
-                  TAG: ${{ steps.vars.outputs.tag }}
                   NOTES_PATH: ${{ steps.notes.outputs.path }}
               run: |
-                  gh release create "$TAG" \
-                    --title "$TAG" \
-                    --notes-file "$NOTES_PATH" \
-                    artifacts/*
+                  gh release create "$TAG" --verify-tag \
+                    --title "$TAG" --notes-file "$NOTES_PATH" \
+                    artifacts/* dist/*

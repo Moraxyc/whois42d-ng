@@ -8,6 +8,8 @@ Originally based on `whoisd` from the dn42 monotone registry by welterde.
 
 ## Installation
 
+For Debian/Ubuntu packages, follow the [APT installation instructions](docs/distribution.md).
+
 Build with Cargo:
 
     $ cargo build --release

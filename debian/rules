@@ -1,0 +1,34 @@
+#!/usr/bin/make -f
+
+BINARY = target/$(if $(CARGO_BUILD_TARGET),$(CARGO_BUILD_TARGET)/)release/whois42d-ng
+DEST = debian/whois42d-ng
+
+%:
+	dh $@ --buildsystem=makefile
+
+override_dh_auto_configure:
+
+override_dh_auto_build:
+	cargo build --release --locked
+
+override_dh_auto_test:
+
+override_dh_auto_install:
+	install -Dm755 $(BINARY) $(DEST)/usr/bin/whois42d-ng
+	install -Dm644 resources/whois42d-ng.socket $(DEST)/usr/lib/systemd/system/whois42d-ng.socket
+	install -Dm644 resources/whois42d-ng-rdap.socket $(DEST)/usr/lib/systemd/system/whois42d-ng-rdap.socket
+	sed 's|/usr/local/bin/whois42d-ng|/usr/bin/whois42d-ng|' resources/whois42d-ng.service > $(DEST)/usr/lib/systemd/system/whois42d-ng.service
+	install -Dm644 LICENSE $(DEST)/usr/share/doc/whois42d-ng/copyright
+	install -m644 README.md $(DEST)/usr/share/doc/whois42d-ng/
+	install -d $(DEST)/usr/share/bash-completion/completions $(DEST)/usr/share/zsh/vendor-completions $(DEST)/usr/share/fish/vendor_completions.d
+	$(BINARY) completions bash > $(DEST)/usr/share/bash-completion/completions/whois42d-ng
+	$(BINARY) completions zsh > $(DEST)/usr/share/zsh/vendor-completions/_whois42d-ng
+	$(BINARY) completions fish > $(DEST)/usr/share/fish/vendor_completions.d/whois42d-ng.fish
+
+override_dh_installsystemd:
+	dh_installsystemd --no-enable --no-start
+
+override_dh_strip:
+	dh_strip --no-automatic-dbgsym
+
+override_dh_auto_clean:
