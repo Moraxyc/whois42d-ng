@@ -53,8 +53,8 @@ Linux binaries are fully static; the macOS binary still uses system libraries.
 Update the version in `Cargo.toml` and `Cargo.lock`, commit the changes, then
 push a matching `vX.Y.Z` tag. The Release workflow checks the version, builds
 the release artifacts, and generates release notes from Conventional Commits
-using `git-cliff` and `cliff.toml`. `CHANGELOG.md` is retained as historical
-release notes; new releases do not require editing it.
+using `git-cliff` and `cliff.toml`. Release notes are published on
+[GitHub Releases](https://github.com/Moraxyc/whois42d-ng/releases).
 
 Publishing uses the workflow’s `GITHUB_TOKEN`; no GitHub App secrets are needed.
 The APT repository picks up releases on its next scheduled refresh.
