@@ -1,0 +1,9 @@
+#!/bin/sh
+set -e
+case "$1" in
+    remove|deconfigure)
+        if [ -d /run/systemd/system ]; then
+            deb-systemd-invoke stop whois42d-ng.socket whois42d-ng-rdap.socket whois42d-ng.service || true
+        fi
+        ;;
+esac

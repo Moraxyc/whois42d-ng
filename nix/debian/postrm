@@ -1,0 +1,8 @@
+#!/bin/sh
+set -e
+if [ "$1" = purge ]; then
+    deb-systemd-helper purge whois42d-ng.socket whois42d-ng-rdap.socket whois42d-ng.service || true
+fi
+if [ -d /run/systemd/system ]; then
+    systemctl daemon-reload || true
+fi

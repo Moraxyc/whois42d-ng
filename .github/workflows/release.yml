@@ -19,36 +19,19 @@ concurrency:
 
 jobs:
     build:
-        name: Build ${{ matrix.target }}
+        name: Build ${{ matrix.system }}
         runs-on: ${{ matrix.os }}
+        timeout-minutes: 60
         strategy:
             fail-fast: false
             matrix:
                 include:
-                    - target: x86_64-unknown-linux-musl
+                    - system: x86_64-linux
                       os: ubuntu-latest
-                      flags: "--no-default-features"
-                    - target: aarch64-unknown-linux-musl
+                    - system: aarch64-linux
                       os: ubuntu-24.04-arm
-                      flags: "--no-default-features"
-                    - target: x86_64-unknown-linux-gnu
-                      os: ubuntu-24.04
-                      flags: ""
-                    - target: aarch64-unknown-linux-gnu
-                      os: ubuntu-24.04-arm
-                      flags: ""
-                    - target: x86_64-pc-windows-gnu
-                      os: ubuntu-latest
-                      flags: "--no-default-features"
-                    - target: x86_64-apple-darwin
+                    - system: aarch64-darwin
                       os: macos-latest
-                      flags: "--no-default-features"
-                    - target: aarch64-apple-darwin
-                      os: macos-latest
-                      flags: "--no-default-features"
-                    - target: riscv64gc-unknown-linux-gnu
-                      os: ubuntu-latest
-                      flags: "--no-default-features"
 
         steps:
             - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
@@ -56,90 +39,46 @@ jobs:
                   ref: refs/tags/${{ inputs.tag || github.ref_name }}
                   persist-credentials: false
 
+            - name: Make room for Nix
+              if: runner.os == 'Linux'
+              uses: wimpysworld/nothing-but-nix@b2574ec1cf1462bee0a34de0fb6ff11ad3c43cb2 # v12
+
+            - uses: cachix/install-nix-action@75c75c31ebece974e48ebc36b4ad125bd97bd97b # v31
+              with:
+                  extra_nix_config: ${{ runner.os == 'Linux' && 'build-dir = /nix/build' || '' }}
+
+            - uses: ryanccn/attic-action@dc99f5eb1d5c0495aa26f7b56337b30011fa153e # v0.5.2
+              with:
+                  endpoint: ${{ vars.ATTIC_ENDPOINT }}
+                  cache: ${{ vars.ATTIC_CACHE }}
+                  token: ${{ secrets.ATTIC_TOKEN }}
+                  inputs-from: .
+
             - name: Check version
               env:
                   TAG: ${{ inputs.tag || github.ref_name }}
               run: |
-                  VERSION=$(python3 -c 'import tomllib; print(tomllib.load(open("Cargo.toml", "rb"))["package"]["version"])')
-                  if [ "v$VERSION" != "$TAG" ]; then
-                    echo "::error::tag $TAG does not match Cargo.toml version $VERSION"
+                  version=$(nix eval --raw .#whois42d-ng.version)
+                  if [ "v$version" != "$TAG" ]; then
+                    echo "::error::tag $TAG does not match Cargo.toml version $version"
                     exit 1
                   fi
 
-            - name: Add Rust target
-              run: rustup target add ${{ matrix.target }}
-
-            - name: Install Linux build dependencies
-              if: runner.os == 'Linux'
-              run: sudo apt-get update && sudo apt-get install -y musl-tools gcc-riscv64-linux-gnu mingw-w64
-
-            - name: Install systemd dev library
-              if: runner.os == 'Linux' && matrix.flags == ''
-              run: sudo apt-get install -y libsystemd-dev
-
-            - name: Build (Linux)
-              if: runner.os == 'Linux'
-              run: cargo build --release --locked --target ${{ matrix.target }} ${{ matrix.flags }}
-              env:
-                  CARGO_TARGET_RISCV64GC_UNKNOWN_LINUX_GNU_LINKER: riscv64-linux-gnu-gcc
-                  CARGO_TARGET_X86_64_PC_WINDOWS_GNU_LINKER: x86_64-w64-mingw32-gcc
-
-            - name: Build (macOS)
-              if: runner.os == 'macOS'
-              run: cargo build --release --locked --target ${{ matrix.target }} ${{ matrix.flags }}
-
-            - name: Build Debian package
-              if: runner.os == 'Linux' && matrix.flags == ''
-              env:
-                  CARGO_BUILD_TARGET: ${{ matrix.target }}
+            - name: Build
               run: |
-                  sudo apt-get install -y debhelper dpkg-dev pkg-config jq
-                  bash scripts/build-deb.sh
+                  bin=$(nix build -L .#whois42d-ng-static --print-out-paths)
+                  mkdir -p dist/bin
+                  install -m755 "$bin/bin/whois42d-ng" "dist/bin/whois42d-ng-${{ matrix.system }}-static"
+                  if [ "$RUNNER_OS" = Linux ]; then
+                    deb=$(nix build -L .#whois42d-ng-deb --print-out-paths)
+                    install -Dm644 -t dist/deb "$deb"/*.deb
+                  fi
 
             - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
-              if: runner.os == 'Linux' && matrix.flags == ''
               with:
-                  name: debian-${{ matrix.target }}
-                  path: dist/*.deb
+                  name: whois42d-ng-${{ matrix.system }}
+                  path: dist/
                   if-no-files-found: error
-
-            - name: Package
-              env:
-                  TARGET: ${{ matrix.target }}
-              run: |
-                  dir="whois42d-ng-${TARGET}"
-                  bin="whois42d-ng"
-                  case "${TARGET}" in
-                    *windows*) bin="whois42d-ng.exe" ;;
-                  esac
-                  mkdir -p "stage/${dir}"
-                  cp "target/${TARGET}/release/${bin}" "stage/${dir}/"
-                  cp LICENSE README.md "stage/${dir}/"
-                  case "${TARGET}" in
-                    *windows*)
-                      (cd stage && zip -r "../${dir}.zip" "${dir}")
-                      sha256sum "${dir}.zip" > "${dir}.zip.sha256"
-                      ;;
-                    *)
-                      tar -C stage -czf "${dir}.tar.gz" "${dir}"
-                      sha256sum "${dir}.tar.gz" > "${dir}.tar.gz.sha256"
-                      ;;
-                  esac
-
-            - name: Set artifact file name
-              id: artifact_name
-              run: |
-                  case "${{ matrix.target }}" in
-                    *windows*) echo "suffix=zip" >> "$GITHUB_OUTPUT" ;;
-                    *)         echo "suffix=tar.gz" >> "$GITHUB_OUTPUT" ;;
-                  esac
-
-            - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
-              with:
-                  name: whois42d-ng-${{ matrix.target }}
-                  path: |
-                      whois42d-ng-${{ matrix.target }}.${{ steps.artifact_name.outputs.suffix }}
-                      whois42d-ng-${{ matrix.target }}.${{ steps.artifact_name.outputs.suffix }}.sha256
 
     release:
         name: Publish GitHub Release
@@ -158,14 +97,8 @@ jobs:
 
             - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8
               with:
-                  path: artifacts
-                  pattern: whois42d-ng-*
-                  merge-multiple: true
-
-            - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8
-              with:
                   path: dist
-                  pattern: debian-*
+                  pattern: whois42d-ng-*
                   merge-multiple: true
 
             - name: Make room for Nix
@@ -176,10 +109,17 @@ jobs:
                   extra_nix_config: |
                       build-dir = /nix/build
 
-            - name: Generate Debian manifest
+            - name: Checksums
               run: |
-                  nix run --inputs-from ./nix/dev moraxyc-repo#moraxyc-repo -- \
-                    manifest --artifacts dist --project whois42d-ng --tag "$TAG"
+                  (cd dist/bin && sha256sum -- *) > SHA256SUMS
+                  (cd dist/deb && sha256sum -- *.deb) >> SHA256SUMS
+
+            - name: Generate and verify Debian manifest
+              run: |
+                  for operation in manifest verify-artifacts; do
+                    nix run --inputs-from ./nix/dev moraxyc-repo#moraxyc-repo -- \
+                      "$operation" --artifacts dist/deb --project whois42d-ng --tag "$TAG"
+                  done
 
             - name: Release notes
               run: |
@@ -192,4 +132,4 @@ jobs:
               run: |
                   gh release create "$TAG" --verify-tag \
                     --title "$TAG" --notes-file notes.md \
-                    artifacts/* dist/*
+                    dist/bin/* dist/deb/* SHA256SUMS

@@ -5,6 +5,8 @@
       config,
       craneLib,
       packaging,
+      pkgs,
+      lib,
       ...
     }:
     {
@@ -30,6 +32,9 @@
             cargoNextestPartitionsExtraArgs = "--no-tests=pass";
           }
         );
+      }
+      // lib.optionalAttrs pkgs.stdenv.hostPlatform.isLinux {
+        deb = config.packages.whois42d-ng-deb;
       };
     };
 }

@@ -1,6 +1,8 @@
 # Debian / Ubuntu packages
 
-Packages are built for Ubuntu 24.04 on `amd64` and `arm64`.
+Packages contain a statically linked Linux binary for `amd64` or `arm64`,
+with systemd socket activation support and no Nix runtime dependency.
+Installation does not enable or start the units.
 APT installation is available after this project is enabled in the central repository.
 
 ## Install
@@ -27,18 +29,24 @@ For RDAP, also enable `whois42d-ng-rdap.socket`.
 
 ## Build a package
 
-With Rust installed on Ubuntu 24.04:
+With Nix installed on Linux:
 
 ```sh
-sudo apt-get install debhelper dpkg-dev pkg-config libsystemd-dev jq
-bash scripts/build-deb.sh
+nix build .#whois42d-ng-deb
+sudo apt-get install ./result/whois42d-ng_*.deb
 ```
 
-The package is written to `dist/`. To install it locally:
+The `.deb` is assembled directly with `dpkg-deb` from the static Nix build.
+To build just the release binary:
 
 ```sh
-sudo apt-get install ./dist/whois42d-ng_*.deb
+nix build .#whois42d-ng-static
+./result/bin/whois42d-ng --help
 ```
+
+Releases provide binaries for `x86_64-linux`, `aarch64-linux`, and
+`aarch64-darwin`, plus `.deb` packages for the two Linux architectures.
+Linux binaries are fully static; the macOS binary still uses system libraries.
 
 ## Publish
 

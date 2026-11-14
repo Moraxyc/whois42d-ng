@@ -1,15 +1,12 @@
-Source: whois42d-ng
+Package: @pname@
+Version: @version@
+Architecture: @architecture@
+Maintainer: Moraxyc <i@qaq.li>
+Installed-Size: @installedSize@
+Depends: init-system-helpers (>= 1.52)
 Section: net
 Priority: optional
-Maintainer: Moraxyc <i@qaq.li>
-Build-Depends: debhelper-compat (= 13), cargo, rustc, pkg-config, libsystemd-dev
-Standards-Version: 4.7.0
 Homepage: https://github.com/Moraxyc/whois42d-ng
-Rules-Requires-Root: no
-
-Package: whois42d-ng
-Architecture: any
-Depends: ${shlibs:Depends}, ${misc:Depends}
 Description: WHOIS and RDAP server for the dn42 registry
  Serves a local dn42 registry checkout over WHOIS and optionally RDAP.
  Includes systemd socket units; the registry must be supplied separately.

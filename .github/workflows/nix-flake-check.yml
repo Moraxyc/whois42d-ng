@@ -7,6 +7,13 @@ on:
         paths:
             - "src/**"
             - "tests/**"
+            - "resources/**"
+            - "Cargo.toml"
+            - "Cargo.lock"
+            - "flake.nix"
+            - "flake.lock"
+            - "nix/**"
+            - ".github/workflows/nix-flake-check.yml"
 
 jobs:
     nix-flake-check:
@@ -24,6 +31,14 @@ jobs:
               with:
                   extra_nix_config: |
                       build-dir = /nix/build
+
+            - uses: ryanccn/attic-action@dc99f5eb1d5c0495aa26f7b56337b30011fa153e # v0.5.2
+              if: github.event_name == 'push'
+              with:
+                  endpoint: ${{ vars.ATTIC_ENDPOINT }}
+                  cache: ${{ vars.ATTIC_CACHE }}
+                  token: ${{ secrets.ATTIC_TOKEN }}
+                  inputs-from: .
 
             - name: Run checks
               run: nix flake check

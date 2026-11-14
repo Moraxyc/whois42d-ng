@@ -23,13 +23,6 @@ result-*
 # Distribution build outputs
 dist/
 .repository-tools/
-debian/changelog
-debian/.debhelper/
-debian/debhelper-build-stamp
-debian/files
-debian/*.substvars
-debian/*.debhelper
-debian/whois42d-ng/
 
 .direnv/
 .pre-commit-config.yaml
