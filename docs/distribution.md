@@ -42,6 +42,11 @@ sudo apt-get install ./dist/whois42d-ng_*.deb
 
 ## Publish
 
-Push a `vX.Y.Z` tag matching the version in `Cargo.toml`.
-The Release workflow requires the existing `APP_ID` and `APP_PRIVATE_KEY` secrets.
+Update the version in `Cargo.toml` and `Cargo.lock`, commit the changes, then
+push a matching `vX.Y.Z` tag. The Release workflow checks the version, builds
+the release artifacts, and generates release notes from Conventional Commits
+using `git-cliff` and `cliff.toml`. `CHANGELOG.md` is retained as historical
+release notes; new releases do not require editing it.
+
+Publishing uses the workflow’s `GITHUB_TOKEN`; no GitHub App secrets are needed.
 The APT repository picks up releases on its next scheduled refresh.

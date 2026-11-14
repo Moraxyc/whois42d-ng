@@ -53,8 +53,18 @@ jobs:
         steps:
             - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
               with:
-                  ref: ${{ inputs.tag || '' }}
+                  ref: refs/tags/${{ inputs.tag || github.ref_name }}
                   persist-credentials: false
+
+            - name: Check version
+              env:
+                  TAG: ${{ inputs.tag || github.ref_name }}
+              run: |
+                  VERSION=$(python3 -c 'import tomllib; print(tomllib.load(open("Cargo.toml", "rb"))["package"]["version"])')
+                  if [ "v$VERSION" != "$TAG" ]; then
+                    echo "::error::tag $TAG does not match Cargo.toml version $VERSION"
+                    exit 1
+                  fi
 
             - name: Add Rust target
               run: rustup target add ${{ matrix.target }}
@@ -135,12 +145,15 @@ jobs:
         name: Publish GitHub Release
         needs: build
         runs-on: ubuntu-latest
+        permissions:
+            contents: write
         env:
             TAG: ${{ inputs.tag || github.ref_name }}
         steps:
             - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
               with:
-                  ref: ${{ inputs.tag || '' }}
+                  ref: refs/tags/${{ inputs.tag || github.ref_name }}
+                  fetch-depth: 0
                   persist-credentials: false
 
             - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8
@@ -168,34 +181,15 @@ jobs:
                   nix run --inputs-from ./nix/dev moraxyc-repo#moraxyc-repo -- \
                     manifest --artifacts dist --project whois42d-ng --tag "$TAG"
 
-            - name: Extract changelog section
-              id: notes
+            - name: Release notes
               run: |
-                  VERSION="${TAG#v}"
-                  NOTES_FILE="$(mktemp)"
-                  if [ -f CHANGELOG.md ]; then
-                    awk -v v="$VERSION" '
-                      $0 ~ "^## \\[?" v "\\]?" { flag=1; next }
-                      /^## \[/ { if (flag) exit }
-                      flag { print }
-                    ' CHANGELOG.md > "$NOTES_FILE"
-                  fi
-                  [ -s "$NOTES_FILE" ] || echo "Release ${VERSION}" > "$NOTES_FILE"
-                  echo "path=$NOTES_FILE" >> "$GITHUB_OUTPUT"
-
-            - name: Generate GitHub App Token
-              id: app-token
-              uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510 # v3
-              with:
-                  client-id: ${{ secrets.APP_ID }}
-                  private-key: ${{ secrets.APP_PRIVATE_KEY }}
-                  permission-contents: write
+                  nix run --inputs-from . nixpkgs#git-cliff -- \
+                    --current --strip header --output notes.md
 
             - name: Create release
               env:
-                  GH_TOKEN: ${{ steps.app-token.outputs.token }}
-                  NOTES_PATH: ${{ steps.notes.outputs.path }}
+                  GH_TOKEN: ${{ github.token }}
               run: |
                   gh release create "$TAG" --verify-tag \
-                    --title "$TAG" --notes-file "$NOTES_PATH" \
+                    --title "$TAG" --notes-file notes.md \
                     artifacts/* dist/*
