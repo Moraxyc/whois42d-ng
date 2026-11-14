@@ -4,6 +4,10 @@
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixpkgs-unstable";
     flake-compat.url = "github:NixOS/flake-compat";
+    moraxyc-repo = {
+      url = "github:Moraxyc/pkgs.moraxyc.com";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
     git-hooks-nix = {
       url = "github:cachix/git-hooks.nix";
       inputs = {

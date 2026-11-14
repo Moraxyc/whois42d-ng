@@ -31,6 +31,27 @@
         "type": "github"
       }
     },
+    "flake-parts": {
+      "inputs": {
+        "nixpkgs-lib": [
+          "moraxyc-repo",
+          "nixpkgs"
+        ]
+      },
+      "locked": {
+        "lastModified": 1793576659,
+        "narHash": "sha256-V1h85lUaJBQoHFrB2vpXZOE0Ju1MYSnIpsehoVZYlDo=",
+        "owner": "hercules-ci",
+        "repo": "flake-parts",
+        "rev": "ea2630b7470978622c7689a1ff75d2b389175399",
+        "type": "github"
+      },
+      "original": {
+        "owner": "hercules-ci",
+        "repo": "flake-parts",
+        "type": "github"
+      }
+    },
     "git-hooks-nix": {
       "inputs": {
         "flake-compat": [
@@ -51,6 +72,27 @@
       "original": {
         "owner": "cachix",
         "repo": "git-hooks.nix",
+        "type": "github"
+      }
+    },
+    "moraxyc-repo": {
+      "inputs": {
+        "flake-parts": "flake-parts",
+        "nixpkgs": [
+          "nixpkgs"
+        ]
+      },
+      "locked": {
+        "lastModified": 1794637286,
+        "narHash": "sha256-hNb460oRxADUGvxVJp7/hgkTGPAEsVhm1igwadx/IkU=",
+        "owner": "Moraxyc",
+        "repo": "pkgs.moraxyc.com",
+        "rev": "d0cbf25f9ede3363788ee8476dcc442b93974485",
+        "type": "github"
+      },
+      "original": {
+        "owner": "Moraxyc",
+        "repo": "pkgs.moraxyc.com",
         "type": "github"
       }
     },
@@ -75,6 +117,7 @@
         "advisory-db": "advisory-db",
         "flake-compat": "flake-compat",
         "git-hooks-nix": "git-hooks-nix",
+        "moraxyc-repo": "moraxyc-repo",
         "nixpkgs": "nixpkgs",
         "treefmt-nix": "treefmt-nix"
       }
