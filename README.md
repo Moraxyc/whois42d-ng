@@ -6,6 +6,18 @@ WHOIS server for the dn42 registry, written in Rust.
 
 Originally based on `whoisd` from the dn42 monotone registry by welterde.
 
+## Binary cache
+
+To use the public binary cache, add to `nix.conf`:
+
+```ini
+extra-substituters = https://nix-cache.qaq.li/whois42d-ng
+extra-trusted-public-keys = whois42d-ng:6EEjSrrvTh2H89IXYaMGbP51Lr7v+Pj2TDFvOaLqcGQ=
+```
+
+Or pass these values to Nix with `--extra-substituters` and
+`--extra-trusted-public-keys`.
+
 ## Installation
 
 For Debian/Ubuntu packages, follow the [APT installation instructions](docs/distribution.md).
