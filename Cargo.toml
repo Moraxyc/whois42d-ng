@@ -1,6 +1,6 @@
 [package]
 name = "whois42d-ng"
-version = "2.2.0"
+version = "2.2.1"
 edition = "2024"
 exclude = ["/resources/fixtures/**"]
 
@@ -18,7 +18,13 @@ axum = "0.8"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 signal-hook = "0.4"
-tokio = { version = "1", features = ["rt-multi-thread", "net", "io-util", "time", "macros"] }
+tokio = { version = "1", features = [
+    "rt-multi-thread",
+    "net",
+    "io-util",
+    "time",
+    "macros",
+] }
 
 [target.'cfg(target_os = "linux")'.dependencies]
 sd-notify = { version = "0.5", optional = true }
